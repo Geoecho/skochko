@@ -1,0 +1,172 @@
+@font-face {
+  font-family: Manrope_500Medium;
+  src: url('/fonts/Manrope_500Medium.ttf') format('truetype');
+  font-display: swap;
+}
+@font-face {
+  font-family: Manrope_600SemiBold;
+  src: url('/fonts/Manrope_600SemiBold.ttf') format('truetype');
+  font-display: swap;
+}
+@font-face {
+  font-family: Manrope_700Bold;
+  src: url('/fonts/Manrope_700Bold.ttf') format('truetype');
+  font-display: swap;
+}
+
+:root { color-scheme: dark only; background: #0b0b0f; }
+html, body { margin: 0; height: 100%; }
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.map-user-location {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.map-user-location::before,
+.map-user-location::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1.5px solid #78baff;
+  border-radius: 50%;
+  background: rgb(70 148 255 / 20%);
+  opacity: 0;
+  animation: map-location-ripple 2.4s ease-out infinite;
+}
+
+.map-user-location::after { animation-delay: -1.2s; }
+
+.map-user-location-dot {
+  z-index: 1;
+  width: 13px;
+  height: 13px;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: #2684ff;
+  box-shadow: 0 0 8px rgb(38 132 255 / 75%);
+}
+
+@keyframes map-location-ripple {
+  from { transform: scale(0.65); opacity: 0; }
+  14% { opacity: 0.9; }
+  to { transform: scale(2.45); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-user-location::before { animation: none; opacity: 0.65; }
+  .map-user-location::after { display: none; }
+}
+
+.sheet-grip {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  color: #f5f5f7;
+  cursor: pointer;
+}
+.sheet-grip { left: 50%; top: 0; transform: translateX(-50%); width: 104px; background: transparent; }
+.sheet-grip span { width: 58px; height: 4px; border-radius: 4px; background: #75757f; }
+
+.venue-action-dock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 16px;
+  background: rgb(25 24 36 / 94%);
+  border-top: 1px solid rgb(255 255 255 / 10%);
+}
+.walking-directions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  color: #f5f5f7;
+  background: rgb(255 255 255 / 8%);
+  text-decoration: none;
+  font: 14px Manrope_600SemiBold, sans-serif;
+}
+.walking-directions:hover { background: rgb(255 255 255 / 14%); }
+
+.sign-in-drawer {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: flex;
+  flex-direction: column;
+  width: min(420px, calc(100% - 28px));
+  animation: sign-in-drawer-enter 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.sign-in-drawer > div { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+
+@keyframes sign-in-drawer-enter {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sign-in-drawer { animation: none; }
+}
+
+.web-dialog {
+  position: fixed;
+  inset: 0;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  color: inherit;
+  background: transparent;
+}
+
+.web-dialog[open] { display: flex; flex-direction: column; }
+.web-dialog::backdrop { background: transparent; }
+.web-dialog-bottom[open] {
+  justify-content: flex-end;
+  align-items: center;
+  overflow: clip;
+}
+.web-dialog-bottom::backdrop { background: rgb(0 0 0 / 45%); }
+.web-dialog-sheet {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 560px);
+  max-height: calc(100% - max(12px, env(safe-area-inset-top, 0px)));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.web-dialog-sheet > div { flex-shrink: 0; }
+.web-dialog-bottom[open] .web-dialog-sheet {
+  animation: web-dialog-enter 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes web-dialog-enter {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .web-dialog-bottom[open] .web-dialog-sheet { animation: none; }
+}
