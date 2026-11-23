@@ -22,6 +22,7 @@ export type MapViewProps = {
   onSelectVenue: (venue: NearbyVenue) => void;
   onProfilePress?: () => void;
   onFavouritesPress?: () => void;
+  onSearchPress?: () => void;
   onMapTap?: () => void;
   /** Active leg/route, drawn bold and animated. [lng, lat] */
   routeLine?: [number, number][];

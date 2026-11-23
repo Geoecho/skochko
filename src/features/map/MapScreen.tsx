@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'next/navigation';
 import { useRequireAuth } from '@/features/auth/SignInSheet';
@@ -31,6 +31,7 @@ export function MapScreen() {
   const [sheetHeight, setSheetHeight] = useState(PEEK_BASE);
   const sheetRef = useRef<BottomSheetHandle>(null);
   const homeRef = useRef<HomeSheetHandle>(null);
+  const pendingSearch = useRef(false);
   const venuesQuery = useNearbyVenues(location.location, filters);
   const eventsQuery = useTonightEvents();
   const stops = useRouteBuilder((state) => state.stops);
@@ -60,6 +61,23 @@ export function MapScreen() {
     setSelectedVenue(null);
     sheetRef.current?.snapTo('full');
   };
+  const openSearch = () => {
+    if (homeRef.current) {
+      sheetRef.current?.snapTo('half');
+      homeRef.current.focusSearch();
+      return;
+    }
+    pendingSearch.current = true;
+    setFavouritesOpen(false);
+    setRouteBuilderOpen(false);
+    setSelectedVenue(null);
+    sheetRef.current?.snapTo('half');
+  };
+  useLayoutEffect(() => {
+    if (!pendingSearch.current || !homeRef.current) return;
+    pendingSearch.current = false;
+    homeRef.current.focusSearch();
+  }, [favouritesOpen, routeBuilderOpen, selectedVenue]);
   // Street-following preview from you (if located) through every stop.
   // The user position is snapped to ~10 m so GPS jitter doesn't refetch directions.
   const userLat = location.userLocation ? Number(location.userLocation.lat.toFixed(4)) : null;
@@ -94,6 +112,7 @@ export function MapScreen() {
           locationIssue={location.issue}
           onLocate={location.locate}
           onProfilePress={() => requireAuth('account', () => router.push('/profile'))}
+          onSearchPress={openSearch}
           onFavouritesPress={() => {
             setSelectedVenue(null);
             setRouteBuilderOpen(false);

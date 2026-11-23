@@ -55,6 +55,8 @@
     "manage": "Manage location access"
   },
   "map": {
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
     "adSpace": "Ad space",
     "favourites": "Favourites",
     "favouritesEmpty": "Save a place to find it here later.",

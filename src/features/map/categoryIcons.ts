@@ -1,78 +1,33 @@
-// Category symbols drawn as canvas line art: one source for map pins and in-app images (crisp at any size, no assets).
+// One set of line icons for venue cards, category filters and map pins.
 import type { VenueCategory } from '@/theme/tokens';
 
-type Ctx = CanvasRenderingContext2D;
-
-// All glyphs are drawn in a 24×24 box centred on (0,0) then scaled.
-const glyphs: Record<VenueCategory, (c: Ctx) => void> = {
-  // Coffee cup with handle, saucer and steam
-  cafe: (c) => {
-    c.beginPath();
-    c.moveTo(-7, -2); c.lineTo(5, -2); c.lineTo(4, 5); c.quadraticCurveTo(3.5, 7, 1.5, 7);
-    c.lineTo(-4.5, 7); c.quadraticCurveTo(-6.5, 7, -7, 5); c.closePath(); c.fill();
-    c.beginPath(); c.arc(6.2, 1.6, 2.6, -Math.PI / 2, Math.PI / 2); c.stroke();
-    c.beginPath(); c.moveTo(-9, 9.3); c.lineTo(7, 9.3); c.stroke();
-    c.beginPath(); c.moveTo(-3.5, -5); c.bezierCurveTo(-5, -7, -2, -8, -3.5, -10.5); c.stroke();
-    c.beginPath(); c.moveTo(1, -5); c.bezierCurveTo(-0.5, -7, 2.5, -8, 1, -10.5); c.stroke();
-  },
-  // Beer mug with foam
-  pub: (c) => {
-    c.beginPath(); c.rect(-7, -4, 11, 13); c.fill();
-    c.beginPath(); c.arc(-4.5, -5, 2.8, Math.PI, 0); c.arc(0, -6, 3.2, Math.PI, 0); c.arc(3.2, -4.6, 2.2, Math.PI, 0); c.lineTo(4, -3); c.lineTo(-7, -3); c.closePath(); c.fill();
-    c.beginPath(); c.moveTo(4, -1); c.lineTo(7.5, -1); c.quadraticCurveTo(9, -1, 9, 0.5); c.lineTo(9, 4.5); c.quadraticCurveTo(9, 6, 7.5, 6); c.lineTo(4, 6); c.stroke();
-    c.save(); c.globalCompositeOperation = 'destination-out';
-    c.lineWidth = 1.4; c.beginPath(); c.moveTo(-3.5, 0); c.lineTo(-3.5, 6.5); c.moveTo(0.5, 0); c.lineTo(0.5, 6.5); c.stroke(); c.restore();
-  },
-  brewery: (c) => glyphs.pub(c),
-  // Wine glass with wine
-  wine_bar: (c) => {
-    c.beginPath(); c.moveTo(-6, -10); c.lineTo(6, -10); c.bezierCurveTo(7, -2, 4, 2, 0, 2); c.bezierCurveTo(-4, 2, -7, -2, -6, -10); c.stroke();
-    c.beginPath(); c.moveTo(-6.4, -5); c.lineTo(6.4, -5); c.bezierCurveTo(5.8, -0.5, 3.4, 1.4, 0, 1.4); c.bezierCurveTo(-3.4, 1.4, -5.8, -0.5, -6.4, -5); c.fill();
-    c.beginPath(); c.moveTo(0, 2); c.lineTo(0, 9); c.moveTo(-4.5, 9.5); c.lineTo(4.5, 9.5); c.stroke();
-  },
-  // Rakija: small tulip "чашка" glass, filled, with a plum beside it
-  rakija_bar: (c) => {
-    c.beginPath(); c.moveTo(-5.5, -9); c.lineTo(1.5, -9); c.lineTo(0.6, 3); c.quadraticCurveTo(0.4, 5, -2, 5); c.quadraticCurveTo(-4.4, 5, -4.6, 3); c.closePath(); c.stroke();
-    c.beginPath(); c.moveTo(-5.1, -4); c.lineTo(1.1, -4); c.lineTo(0.5, 3); c.quadraticCurveTo(0.3, 4.4, -2, 4.4); c.quadraticCurveTo(-4.3, 4.4, -4.5, 3); c.closePath(); c.fill();
-    c.beginPath(); c.moveTo(-2, 5); c.lineTo(-2, 8.5); c.moveTo(-5.5, 9.2); c.lineTo(1.5, 9.2); c.stroke();
-    c.beginPath(); c.ellipse(6, 4.5, 3.4, 4, 0, 0, Math.PI * 2); c.fill();
-    c.beginPath(); c.moveTo(6, 0.5); c.quadraticCurveTo(6.5, -2.5, 8.8, -3.5); c.stroke();
-  },
-  // Classic cocktail (martini) glass with olive
-  bar: (c) => {
-    c.beginPath(); c.moveTo(-9, -8); c.lineTo(9, -8); c.lineTo(0, 1.5); c.closePath(); c.stroke();
-    c.beginPath(); c.moveTo(-6.2, -5); c.lineTo(6.2, -5); c.lineTo(0, 1.5); c.closePath(); c.fill();
-    c.beginPath(); c.moveTo(0, 1.5); c.lineTo(0, 8.5); c.moveTo(-5, 9.2); c.lineTo(5, 9.2); c.stroke();
-    c.beginPath(); c.moveTo(3, -11); c.lineTo(-1.5, -4); c.stroke();
-  },
-  // Tumbler with lime wheel and straw
-  cocktail_bar: (c) => {
-    c.beginPath(); c.moveTo(-6.5, -5); c.lineTo(6.5, -5); c.lineTo(5.3, 9); c.lineTo(-5.3, 9); c.closePath(); c.stroke();
-    c.beginPath(); c.moveTo(-6.1, -1); c.lineTo(6.1, -1); c.lineTo(5.2, 8.4); c.lineTo(-5.2, 8.4); c.closePath(); c.fill();
-    c.beginPath(); c.moveTo(1.5, 3); c.lineTo(4.5, -11); c.lineTo(7.5, -11); c.stroke();
-    c.beginPath(); c.arc(-5.5, -6, 3.6, 0, Math.PI * 2); c.stroke();
-  },
-  // Music note pair
-  club: (c) => {
-    c.beginPath(); c.moveTo(-3, 6); c.lineTo(-3, -8); c.lineTo(8, -10.5); c.lineTo(8, 3.5); c.stroke();
-    c.beginPath(); c.moveTo(-3, -4.5); c.lineTo(8, -7); c.stroke();
-    c.beginPath(); c.ellipse(-5.8, 6.5, 3.4, 2.6, -0.35, 0, Math.PI * 2); c.fill();
-    c.beginPath(); c.ellipse(5.2, 4, 3.4, 2.6, -0.35, 0, Math.PI * 2); c.fill();
-  },
+const glyphs: Record<VenueCategory, string> = {
+  cafe: 'M4 8h12v4a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8Z M16 9h2a2.5 2.5 0 0 1 0 5h-2 M3 21h16 M8 3v2 M12 3v2',
+  pub: 'M5 9v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V9 M17 10h2a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2 M8 13v4 M13 13v4 M5 8c-2-1-1-5 2-4a3 3 0 0 1 5-1 3 3 0 0 1 5 2c3 1 2 5-1 5h-3l-2-1-2 1H7Z',
+  brewery: 'M8 3h8 M9 3v4l-3 4v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-8l-3-4V3 M6 12h12 M6 17h12',
+  bar: 'M4 8h16l-8 8-8-8Z M12 16v5 M8 21h8 M16 8l3-5',
+  wine_bar: 'M7 3h10l1 5a6 6 0 1 1-12 0l1-5Z M6 8h12 M12 15v6 M8 21h8',
+  rakija_bar: 'M7 10h10l-1 9a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2l-1-9Z M8 15h8 M12 3c1.3 1.7 2 2.5 2 3.5a2 2 0 1 1-4 0c0-1 .7-1.8 2-3.5Z',
+  cocktail_bar: 'M5 9h14l-2 12H7L5 9Z M6 14h12 M12 14l3-11h4 M5 10a3.5 3.5 0 1 1 4-1',
+  club: 'M9 17V6l11-3v11 M9 10l11-3 M9 17a3 2.5 0 1 1-6 0 3 2.5 0 1 1 6 0Z M20 14a3 2.5 0 1 1-6 0 3 2.5 0 1 1 6 0Z',
 };
 
-/** Draws the category glyph centred at (cx, cy), fitting a square of `size` px. */
-export function drawCategoryIcon(ctx: Ctx, category: VenueCategory, cx: number, cy: number, size: number, color: string) {
-  const draw = glyphs[category] ?? glyphs.bar;
+const paths = new Map<VenueCategory, Path2D>();
+
+export function drawCategoryIcon(ctx: CanvasRenderingContext2D, category: VenueCategory, cx: number, cy: number, size: number, color: string) {
+  let path = paths.get(category);
+  if (!path) {
+    path = new Path2D(glyphs[category] ?? glyphs.bar);
+    paths.set(category, path);
+  }
   ctx.save();
-  ctx.translate(cx, cy);
+  ctx.translate(cx - size / 2, cy - size / 2);
   ctx.scale(size / 24, size / 24);
-  ctx.fillStyle = color;
   ctx.strokeStyle = color;
-  ctx.lineWidth = 1.9;
+  ctx.lineWidth = 2;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  draw(ctx);
+  ctx.stroke(path);
   ctx.restore();
 }
 

@@ -4,8 +4,8 @@ import type { Map as MapLibreMap } from 'maplibre-gl';
 import { colors, type VenueCategory } from '@/theme/tokens';
 import { drawCategoryIcon } from './categoryIcons';
 
-export const PIN_W = 34; // CSS px
-export const PIN_H = 44;
+export const PIN_W = 38; // CSS px
+export const PIN_H = 43;
 const SCALE = 3; // drawn at 3x, registered with pixelRatio 3
 
 function drawPin(category: VenueCategory, fill: string, promoted: boolean): ImageData {
@@ -18,9 +18,9 @@ function drawPin(category: VenueCategory, fill: string, promoted: boolean): Imag
   ctx.scale(SCALE, SCALE);
 
   const cx = PIN_W / 2;
-  const r = 13; // head radius
-  const cy = r + 3; // head centre
-  const tipY = PIN_H - 3;
+  const r = 14.5;
+  const cy = r + 4;
+  const tipY = PIN_H - 2;
 
   // Ground shadow at the tip
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
@@ -39,35 +39,24 @@ function drawPin(category: VenueCategory, fill: string, promoted: boolean): Imag
   };
 
   ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,0.45)';
+  ctx.shadowColor = 'rgba(0,0,0,0.55)';
   ctx.shadowBlur = 4;
   ctx.shadowOffsetY = 1.5;
   shape();
-  ctx.fillStyle = fill;
+  ctx.fillStyle = colors.bgElevated;
   ctx.fill();
   ctx.restore();
 
-  // Glassy highlight on the upper half of the head
-  const grad = ctx.createLinearGradient(0, cy - r, 0, cy + r);
-  grad.addColorStop(0, 'rgba(255,255,255,0.38)');
-  grad.addColorStop(0.55, 'rgba(255,255,255,0.04)');
-  grad.addColorStop(1, 'rgba(255,255,255,0)');
   shape();
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  // Rim: dark for contrast on light tiles, accent when promoted.
-  shape();
-  ctx.lineWidth = promoted ? 2.2 : 1.2;
-  ctx.strokeStyle = promoted ? colors.accent : 'rgba(11,11,15,0.85)';
+  ctx.lineWidth = promoted ? 2.3 : 1.45;
+  ctx.strokeStyle = promoted ? colors.accent : fill;
   ctx.stroke();
 
-  // Category symbol inside the head (dark disc keeps it legible on light category colours).
   ctx.beginPath();
-  ctx.arc(cx, cy, 9.6, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(11,11,15,0.82)';
+  ctx.arc(cx, cy, 11.25, 0, Math.PI * 2);
+  ctx.fillStyle = `${fill}24`;
   ctx.fill();
-  drawCategoryIcon(ctx, category, cx, cy, 13.5, '#FFFFFF');
+  drawCategoryIcon(ctx, category, cx, cy, 19, fill);
 
   return ctx.getImageData(0, 0, w, h);
 }

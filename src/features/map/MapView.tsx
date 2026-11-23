@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useReducedMotion } from '@/lib/use-reduced-motion';
 import {
@@ -11,7 +11,7 @@ import {
   type GeoJSONSource,
   type MapLayerMouseEvent,
 } from 'maplibre-gl';
-import type { Feature, FeatureCollection, LineString, Point } from 'geojson';
+import type { FeatureCollection, Point } from 'geojson';
 import { colors, radius, space, touch } from '@/theme/tokens';
 import { Glass, IconButton, Text } from '@/ui';
 import { TopBar } from './TopBar';
@@ -73,6 +73,7 @@ export function MapView({
   onSelectVenue,
   onProfilePress,
   onFavouritesPress,
+  onSearchPress,
   onMapTap,
   routeLine,
   routeMuted,
@@ -81,7 +82,7 @@ export function MapView({
 }: MapViewProps) {
   const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
-  const { height: windowHeight } = useWindowDimensions();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markerRef = useRef<Marker | null>(null);
@@ -196,8 +197,8 @@ export function MapView({
         source: VENUE_SOURCE,
         filter: ['has', 'point_count'],
         paint: {
-          'circle-color': colors.glassStrong,
-          'circle-radius': ['step', ['get', 'point_count'], 18, 10, 22, 30, 27],
+          'circle-color': colors.bgElevated,
+          'circle-radius': ['step', ['get', 'point_count'], 16, 10, 20, 30, 24],
           'circle-stroke-color': colors.accent,
           'circle-stroke-width': 1.5,
         },
@@ -208,7 +209,7 @@ export function MapView({
         source: VENUE_SOURCE,
         filter: ['has', 'point_count'],
         layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 12, 'text-font': ['Noto Sans Regular'] },
-        paint: { 'text-color': colors.text },
+        paint: { 'text-color': colors.accent },
       });
       map.addSource(FEATURED_SOURCE, { type: 'geojson', data: venueCollection(getFeaturedVenues(venuesRef.current), null) });
       for (const id of VENUE_PULSE_LAYERS) {
@@ -253,7 +254,7 @@ export function MapView({
           'symbol-sort-key': ['case', ['==', ['get', 'is_selected'], true], 2, ['==', ['get', 'is_promoted'], true], 1, 0],
         },
         paint: {
-          'icon-opacity': ['case', ['==', ['get', 'is_open'], true], 1, 0.45],
+          'icon-opacity': ['case', ['any', ['==', ['get', 'is_selected'], true], ['==', ['get', 'is_open'], true]], 1, 0.65],
         },
       });
 
@@ -446,6 +447,11 @@ export function MapView({
     }
     onLocate();
   };
+  const changeZoom = (amount: number) => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.easeTo({ zoom: map.getZoom() + amount, duration: reduceMotion ? 0 : 220 });
+  };
 
   return (
     <View style={styles.root}>
@@ -459,17 +465,22 @@ export function MapView({
         />
       ) : null}
 
-      {onProfilePress && onFavouritesPress ? <TopBar onProfilePress={onProfilePress} onFavouritesPress={onFavouritesPress} /> : null}
+      {onProfilePress && onFavouritesPress && onSearchPress ? (
+        <TopBar onProfilePress={onProfilePress} onFavouritesPress={onFavouritesPress} onSearchPress={onSearchPress} />
+      ) : null}
 
       {/* Hidden when the sheet covers most of the map: it would float over the sheet's edge. */}
-      {!mapFailed && !contextLost && sheetHeight < windowHeight * 0.7 ? (
-        <IconButton
-          icon="locate"
-          label={userLocation ? t('nav.recenter') : t('map.useLocation')}
-          loop={locating}
-          onPress={handleLocate}
-          style={[styles.locateGlass, { bottom: sheetHeight + space.lg }]}
-        />
+      {mapReady && !mapFailed && !contextLost && sheetHeight < windowHeight * 0.7 ? (
+        <View pointerEvents="box-none" style={[styles.controls, { bottom: sheetHeight + space.lg }]}>
+          {windowWidth >= 768 && onSearchPress ? (
+            <Glass rounded={radius.sm} style={styles.zoomGroup}>
+              <IconButton icon="plus" label={t('map.zoomIn')} tone="plain" size={19} onPress={() => changeZoom(1)} />
+              <View style={styles.controlDivider} />
+              <IconButton icon="minus" label={t('map.zoomOut')} tone="plain" size={19} onPress={() => changeZoom(-1)} />
+            </Glass>
+          ) : null}
+          <IconButton icon="locate" label={userLocation ? t('nav.recenter') : t('map.useLocation')} loop={locating} selected={!!userLocation} onPress={handleLocate} />
+        </View>
       ) : null}
 
       {locationIssue && !userLocation && sheetHeight < windowHeight * 0.7 ? (
@@ -483,7 +494,7 @@ export function MapView({
           <Pressable
             key={venue.id}
             accessibilityRole="button"
-            accessibilityLabel={`${venue.name}, ${t(`categories.${venue.category}`)}, ${venue.is_open_now ? t('common.openNow') : t('common.closed')}`}
+            accessibilityLabel={`${venue.name}, ${t(`categories.${venue.category}`)}${venue.is_open_now ? `, ${t('common.openNow')}` : Object.keys(venue.hours ?? {}).length ? `, ${t('common.closed')}` : ''}`}
             onPress={() => onSelectVenue(venue)}
           >
             <Text>{venue.name}</Text>
@@ -496,24 +507,13 @@ export function MapView({
 
 const domStyles = {
   map: { position: 'absolute', inset: 0, width: '100%', height: '100%' } as React.CSSProperties,
-  safeTop: { top: 'max(12px, env(safe-area-inset-top, 0px))' } as object,
 };
 
 const styles = StyleSheet.create({
   root: { ...StyleSheet.absoluteFill, backgroundColor: colors.bg },
-  topBar: {
-    position: 'absolute',
-    right: space.lg,
-    flexDirection: 'row',
-  },
-  avatarGlass: { width: touch.min + 4, height: touch.min + 4 },
-  avatarButton: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  locateGlass: { position: 'absolute', right: space.lg, width: touch.min + 8, height: touch.min + 8 },
-  locateButton: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  locateIcon: { fontSize: 25, lineHeight: 28 },
-  pressed: { opacity: 0.7 },
-  mapError: { position: 'absolute', top: 88, left: space.lg, right: space.lg, padding: space.md },
-  errorText: { textAlign: 'center' },
+  controls: { position: 'absolute', right: space.lg, alignItems: 'center', gap: space.sm },
+  zoomGroup: { overflow: 'hidden' },
+  controlDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.hairline },
   locationNotice: {
     position: 'absolute', left: space.lg, right: space.lg + touch.min + 16,
     maxWidth: 280, padding: space.sm, borderRadius: radius.sm, backgroundColor: colors.bgElevated,

@@ -25,6 +25,18 @@ function BrandIcon({ size = 24 }: { size?: number }) {
   </svg>;
 }
 
+function PlusIcon({ size = 24 }: { size?: number }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <path d="M5 12h14M12 5v14" />
+  </svg>;
+}
+
+function MinusIcon({ size = 24 }: { size?: number }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <path d="M5 12h14" />
+  </svg>;
+}
+
 const ICONS = {
   brand: BrandIcon,
   heart: HeartIcon,
@@ -33,6 +45,8 @@ const ICONS = {
   compass: CompassIcon,
   map: MapIcon,
   locate: LocateFixedIcon,
+  plus: PlusIcon,
+  minus: MinusIcon,
   pinCheck: MapPinCheckIcon,
   pinPlus: MapPinPlusIcon,
   play: PlayIcon,
