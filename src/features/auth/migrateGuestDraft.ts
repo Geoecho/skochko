@@ -2,27 +2,28 @@ import { useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@/lib/browser-storage';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import { useRouteBuilder } from '@/state/routeBuilder';
+import { routeDraftSignature, useRouteBuilder } from '@/state/routeBuilder';
 import i18n from '@/i18n';
 
 const decisionKey = (userId: string) => `skochko.guest-draft-migration:${userId}`;
 
 export function useGuestDraftMigration(session: Session | null) {
   const stops = useRouteBuilder((state) => state.stops);
-  const clear = useRouteBuilder((state) => state.clear);
+  const savedRouteId = useRouteBuilder((state) => state.savedRouteId);
+  const setSavedRoute = useRouteBuilder((state) => state.setSavedRoute);
   const [visible, setVisible] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
   const inspectedUser = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!session || stops.length < 2 || inspectedUser.current === session.user.id) return;
+    if (!session || savedRouteId || stops.length < 2 || inspectedUser.current === session.user.id) return;
     inspectedUser.current = session.user.id;
 
     AsyncStorage.getItem(decisionKey(session.user.id)).then((decision) => {
-      if (!decision) setVisible(true);
+      if (!decision && !useRouteBuilder.getState().savedRouteId) setVisible(true);
     });
-  }, [session, stops.length]);
+  }, [session, savedRouteId, stops.length]);
 
   const finish = async () => {
     if (!session) return;
@@ -75,12 +76,14 @@ export function useGuestDraftMigration(session: Session | null) {
       return;
     }
 
-    clear();
+    setSavedRoute(route.id, i18n.t('route.defaultTitle'), {
+      ownerId: session.user.id,
+      signature: routeDraftSignature(stops),
+      isPublic: false,
+    });
     await finish();
     setSaving(false);
   };
 
-  return { visible, saving, error, save, dismiss: finish };
+  return { visible: visible && !savedRouteId, saving, error, save, dismiss: finish };
 }
-
-

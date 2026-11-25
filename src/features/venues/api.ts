@@ -193,6 +193,8 @@ export function normalizeVenue(value: unknown): NearbyVenue | null {
     lat: point.lat,
     lng: point.lng,
     address: typeof row.address === 'string' ? row.address : null,
+    phone: typeof row.phone === 'string' ? row.phone : null,
+    website: typeof row.website === 'string' ? row.website : null,
     price_level: row.price_level == null ? null : (Number(row.price_level) as 1 | 2 | 3),
     hours: row.hours && typeof row.hours === 'object' ? (row.hours as OpeningHours) : null,
     photos: Array.isArray(row.photos) ? row.photos.filter((photo): photo is string => typeof photo === 'string') : null,

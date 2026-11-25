@@ -17,6 +17,7 @@ const bounds = {
 const fieldMask = [
   'id', 'displayName', 'primaryType', 'types', 'formattedAddress', 'location', 'businessStatus',
   'regularOpeningHours', 'internationalPhoneNumber', 'websiteUri', 'priceLevel',
+  'rating', 'userRatingCount', 'reviews', 'googleMapsUri',
 ].map((field) => `places.${field}`).concat('nextPageToken').join(',');
 
 function openingHours(periods) {
@@ -58,6 +59,17 @@ function toVenue(place, searchType) {
     id: place.id, name, slug: `${slug}-google-${idHash}`, category: categories[type], lat, lng,
     address: place.formattedAddress, hours: openingHours(place.regularOpeningHours?.periods),
     phone: place.internationalPhoneNumber, website: place.websiteUri, price: prices[place.priceLevel],
+    googleDetails: {
+      rating: place.rating ?? null,
+      count: place.userRatingCount ?? null,
+      url: place.googleMapsUri ?? null,
+      reviews: (place.reviews ?? []).flatMap((review) => {
+        const text = review.text?.text?.trim();
+        const author = review.authorAttribution?.displayName;
+        if (!review.name || !text || !author) return [];
+        return [{ id: review.name, author, text, rating: review.rating ?? null, url: review.googleMapsUri ?? null }];
+      }),
+    },
   };
 }
 
@@ -117,7 +129,7 @@ async function publish(venues) {
   const existingByName = new Map();
   for (let offset = 0; ; offset += 200) {
     const result = await request(new URLSearchParams({
-      select: 'name,name_en,slug,location,source,external_id,address,hours,phone,website,price_level',
+      select: 'name,name_en,slug,location,source,external_id,address,hours,phone,website,price_level,google_details',
       city_id: `eq.${cityId}`, order: 'id.asc', limit: '200', offset: String(offset),
     }));
     const rows = await result.json();
@@ -150,6 +162,7 @@ async function publish(venues) {
       address: venue.address ?? previous?.address ?? null, hours: venue.hours ?? previous?.hours ?? {},
       phone: venue.phone ?? previous?.phone ?? null, website: venue.website ?? previous?.website ?? null,
       price_level: venue.price ?? previous?.price_level ?? 2,
+      google_details: venue.googleDetails ?? previous?.google_details ?? null,
     });
   }
 

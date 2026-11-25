@@ -6,9 +6,10 @@ import { supabase } from '@/lib/supabase';
 import type { NearbyVenue } from '@/types/domain';
 import { normalizeVenue } from './api';
 
-const useGuestFavourites = create<{ venues: NearbyVenue[]; toggle: (venue: NearbyVenue) => void }>()(
+const useGuestFavourites = create<{ venues: NearbyVenue[]; toggle: (venue: NearbyVenue) => void; remove: (id: string) => void }>()(
   persist(set => ({
     venues: [],
+    remove: id => set(state => ({ venues: state.venues.filter(venue => venue.id !== id) })),
     toggle: venue => set(state => ({
       venues: state.venues.some(item => item.id === venue.id)
         ? state.venues.filter(item => item.id !== venue.id)
@@ -22,6 +23,7 @@ export function useFavourites() {
   const userId = session?.user.id;
   const guestVenues = useGuestFavourites(state => state.venues);
   const toggleGuest = useGuestFavourites(state => state.toggle);
+  const removeGuest = useGuestFavourites(state => state.remove);
   const client = useQueryClient();
   const key = ['favourite-venues', userId] as const;
   const query = useQuery({
@@ -41,6 +43,7 @@ export function useFavourites() {
         : await supabase.from('favourites').insert({ user_id: userId, venue_id: venue.id });
       if (error && error.code !== '23505') throw error;
     },
+    onMutate: () => client.cancelQueries({ queryKey: key }),
     onSuccess: (_, { venue, remove }) => {
       client.setQueryData<NearbyVenue[]>(key, (items = []) => remove
         ? items.filter(item => item.id !== venue.id)
@@ -55,6 +58,10 @@ export function useFavourites() {
     retry: query.refetch,
     saving: mutation.isPending,
     saveError: mutation.isError,
+    remove(venue: NearbyVenue) {
+      if (!userId) removeGuest(venue.id);
+      else mutation.mutate({ venue, remove: true });
+    },
     toggle(venue: NearbyVenue) {
       if (!userId) toggleGuest(venue);
       else mutation.mutate({ venue, remove: venues.some(item => item.id === venue.id) });

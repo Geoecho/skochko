@@ -27,7 +27,7 @@ const CLUSTER_LAYER = 'venue-clusters';
 const CLUSTER_COUNT_LAYER = 'venue-cluster-count';
 const PIN_LAYER = 'venue-pins';
 const FEATURED_SOURCE = 'featured-venues';
-const VENUE_PULSE_LAYERS = ['venue-featured-pulse', 'venue-featured-pulse-offset'] as const;
+const VENUE_PULSE_LAYER = 'venue-featured-pulse';
 setWorkerUrl(`/map/maplibre-gl-worker.mjs?v=${getVersion()}`);
 
 function venueCollection(venues: NearbyVenue[], selectedVenueId: string | null): FeatureCollection<Point> {
@@ -55,9 +55,15 @@ function createUserMarker(): Marker {
   const element = document.createElement('div');
   element.className = 'map-user-location';
   element.setAttribute('role', 'img');
-  const dot = document.createElement('span');
-  dot.className = 'map-user-location-dot';
-  element.append(dot);
+  const emblem = document.createElement('span');
+  emblem.className = 'map-user-location-emblem';
+  emblem.setAttribute('aria-hidden', 'true');
+  for (let step = 0; step < 2; step++) {
+    const footprint = document.createElement('span');
+    footprint.className = 'map-user-footprint';
+    emblem.append(footprint);
+  }
+  element.append(emblem);
   return new Marker({ element, anchor: 'center' });
 }
 
@@ -212,26 +218,23 @@ export function MapView({
         paint: { 'text-color': colors.accent },
       });
       map.addSource(FEATURED_SOURCE, { type: 'geojson', data: venueCollection(getFeaturedVenues(venuesRef.current), null) });
-      for (const id of VENUE_PULSE_LAYERS) {
-        map.addLayer({
-          id,
-          type: 'circle',
-          source: FEATURED_SOURCE,
-          paint: {
-            'circle-radius': 19,
-            'circle-color': colors.accent,
-            'circle-opacity': 0,
-            'circle-stroke-color': colors.accent,
-            'circle-stroke-width': 2.5,
-            'circle-stroke-opacity': 0,
-            'circle-translate': [0, -12],
-            'circle-translate-anchor': 'viewport',
-            'circle-radius-transition': { duration: 0 },
-            'circle-opacity-transition': { duration: 0 },
-            'circle-stroke-opacity-transition': { duration: 0 },
-          },
-        });
-      }
+      map.addLayer({
+        id: VENUE_PULSE_LAYER,
+        type: 'circle',
+        source: FEATURED_SOURCE,
+        minzoom: 15,
+        paint: {
+          'circle-radius': 17,
+          'circle-opacity': 0,
+          'circle-stroke-color': colors.accent,
+          'circle-stroke-width': 2,
+          'circle-stroke-opacity': 0,
+          'circle-translate': [0, -22],
+          'circle-translate-anchor': 'viewport',
+          'circle-radius-transition': { duration: 0 },
+          'circle-stroke-opacity-transition': { duration: 0 },
+        },
+      });
       addPinImages(map);
       // Teardrop location pins; the tip sits exactly on the venue coordinate.
       map.addLayer({
@@ -310,15 +313,10 @@ export function MapView({
   const hasFeaturedVenues = venues.length > 0;
   useEffect(() => {
     const map = mapRef.current;
-    if (!mapReady || contextLost || !map?.getLayer(VENUE_PULSE_LAYERS[0]) || !hasFeaturedVenues) return;
-    const paintRing = (id: string, radius: number, opacity: number) => {
-      map.setPaintProperty(id, 'circle-radius', radius);
-      map.setPaintProperty(id, 'circle-opacity', opacity * 0.12);
-      map.setPaintProperty(id, 'circle-stroke-opacity', opacity);
-    };
+    if (!mapReady || contextLost || !map?.getLayer(VENUE_PULSE_LAYER) || !hasFeaturedVenues) return;
+    const ripple = VENUE_PULSE_LAYER;
     if (reduceMotion) {
-      paintRing(VENUE_PULSE_LAYERS[0], 21, 0.72);
-      paintRing(VENUE_PULSE_LAYERS[1], 21, 0);
+      map.setPaintProperty(ripple, 'circle-stroke-opacity', 0);
       return;
     }
 
@@ -326,13 +324,12 @@ export function MapView({
     let lastUpdate = -Infinity;
     const start = performance.now();
     const tick = (time: number) => {
-      if (time - lastUpdate >= 30) {
+      if (time - lastUpdate >= 40) {
         lastUpdate = time;
-        VENUE_PULSE_LAYERS.forEach((layer, index) => {
-          const phase = ((time - start) / 2200 + index * 0.5) % 1;
-          const opacity = Math.min(phase * 8, 1) * ((1 - phase) ** 1.5);
-          paintRing(layer, 17 + 24 * (1 - (1 - phase) ** 2), opacity);
-        });
+        const phase = ((time - start) % 3200) / 1650;
+        const progress = Math.min(1, phase);
+        map.setPaintProperty(ripple, 'circle-radius', 18 + 15 * (1 - (1 - progress) ** 2));
+        map.setPaintProperty(ripple, 'circle-stroke-opacity', 0.8 * Math.min(1, progress * 9) * (1 - progress) ** 2);
       }
       frame = requestAnimationFrame(tick);
     };
@@ -340,26 +337,25 @@ export function MapView({
     return () => cancelAnimationFrame(frame);
   }, [contextLost, hasFeaturedVenues, mapReady, reduceMotion]);
 
-  // Animate only when the route geometry actually changes (not on every render).
-  const routeKey = routeLine ? `${routeLine.length}:${routeLine[0]}:${routeLine[routeLine.length - 1]}` : '';
   useEffect(() => {
-    if (!loadedRef.current) return;
-    routeAnimRef.current?.setActive(routeLine);
-    const map = mapRef.current;
-    if (map && routeLine && routeLine.length >= 2 && fitRoute) {
-      const lngs = routeLine.map((c) => c[0]);
-      const lats = routeLine.map((c) => c[1]);
-      map.fitBounds(
-        [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
-        { padding: { top: 90, left: 48, right: 48, bottom: Math.min(sheetHeight + 40, map.getContainer().clientHeight * 0.55) }, maxZoom: 17, duration: reduceMotion ? 0 : 900 },
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routeKey, mapReady, fitRoute]);
+    if (mapReady) routeAnimRef.current?.setActive(routeLine);
+  }, [routeLine, mapReady]);
 
   useEffect(() => {
-    if (loadedRef.current) routeAnimRef.current?.setMuted(routeMuted);
+    if (mapReady) routeAnimRef.current?.setMuted(routeMuted);
   }, [routeMuted, mapReady]);
+
+  const routeForBounds = routeLine ?? routeMuted;
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map || !fitRoute || !routeForBounds || routeForBounds.length < 2) return;
+    const lngs = routeForBounds.map(([lng]) => lng);
+    const lats = routeForBounds.map(([, lat]) => lat);
+    map.fitBounds(
+      [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+      { padding: { top: 90, left: 48, right: 48, bottom: Math.min(sheetHeightRef.current + 40, map.getContainer().clientHeight * 0.55) }, maxZoom: 17, duration: reduceMotion ? 0 : 650 },
+    );
+  }, [fitRoute, mapReady, reduceMotion, routeForBounds]);
 
   useEffect(() => {
     const map = mapRef.current;

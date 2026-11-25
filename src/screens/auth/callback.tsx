@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/lib/supabase';
-import { Text } from '@/ui';
+import { Button, Text } from '@/ui';
 import { colors, space } from '@/theme/tokens';
 
 export default function AuthCallbackScreen({ code }: { code?: string }) {
@@ -23,7 +23,7 @@ export default function AuthCallbackScreen({ code }: { code?: string }) {
     })().catch(() => false);
     void pending.current.then((ok) => {
       if (!active) return;
-      if (ok) router.replace('/');
+      if (ok) router.replace('/profile');
       else setError(true);
     });
     return () => { active = false; };
@@ -31,7 +31,7 @@ export default function AuthCallbackScreen({ code }: { code?: string }) {
 
   return (
     <View style={styles.root}>
-      {exchangeFailed ? <Text tone="danger">{t('auth.callbackError')}</Text> : <><ActivityIndicator color={colors.accent} /><Text tone="secondary">{t('auth.callbackLoading')}</Text></>}
+      {exchangeFailed ? <><Text accessibilityRole="alert" tone="danger">{t('auth.callbackError')}</Text><Button label={t('common.back')} onPress={() => router.replace('/profile')} /></> : <><ActivityIndicator color={colors.accent} /><Text tone="secondary">{t('auth.callbackLoading')}</Text></>}
     </View>
   );
 }

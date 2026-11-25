@@ -1,16 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Image, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useRouter } from 'next/navigation';
+import { useOpenSettings } from '@/features/settings/SettingsDrawerContext';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useRequireAuth } from '@/features/auth/SignInSheet';
 import { supabase } from '@/lib/supabase';
 import { useUserStats } from '@/features/history/api';
-import { Button, Glass, Text } from '@/ui';
+import { SideDrawer } from '@/ui/SideDrawer';
+import { Button, Glass, IconButton, Text } from '@/ui';
 import { colors, radius, space } from '@/theme/tokens';
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ onDismiss }: { onDismiss?: () => void }) {
   const router = useRouter();
+  const dismiss = useCallback(() => { if (onDismiss) onDismiss(); else router.replace('/'); }, [onDismiss, router]);
+  const openSettings = useOpenSettings();
   const { t } = useTranslation();
   const stats = useUserStats();
   const crawls = stats.data?.crawls_count ?? 0;
@@ -68,19 +72,18 @@ export default function ProfileScreen() {
   const initials = (profile?.display_name || session?.user.email || '?').slice(0, 1).toUpperCase();
 
   return (
+    <SideDrawer label={t('profile.title')} onDismiss={dismiss}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Glass strong style={styles.header}>
-        <Pressable accessibilityRole="button" accessibilityLabel={t('common.back')} onPress={() => router.back()} style={styles.back}>
-          <Text variant="headline">‹</Text>
-        </Pressable>
         <Text variant="title" weight="bold">{t('profile.title')}</Text>
+        <IconButton icon="close" label={t('common.close')} tone="plain" onPress={dismiss} />
       </Glass>
 
       {!session ? (
         <Glass style={styles.card}>
           <Text variant="title" weight="bold">{t('profile.guestUser')}</Text>
           <Text tone="secondary">{t('profile.guestSubtitle')}</Text>
-          <Button label={t('auth.signInButton')} full onPress={() => requireAuth('save', () => router.replace('/profile'))} />
+          <Button label={t('auth.signInButton')} full onPress={() => requireAuth('account', () => {})} />
         </Glass>
       ) : (
         <>
@@ -123,13 +126,14 @@ export default function ProfileScreen() {
 
           <Glass style={styles.menu}>
             <MenuItem label={t('profile.history')} onPress={() => router.push('/history')} />
-            <MenuItem label={t('profile.settings')} onPress={() => router.push('/settings')} />
+            <MenuItem label={t('profile.settings')} onPress={openSettings} />
             {isAdmin && <MenuItem label={t('profile.admin')} onPress={() => router.push('/admin')} />}
-            <MenuItem label={t('profile.signOut')} danger onPress={() => signOut().then(() => router.replace('/'))} />
+            <MenuItem label={t('profile.signOut')} danger onPress={() => signOut().then(dismiss)} />
           </Glass>
         </>
       )}
     </ScrollView>
+    </SideDrawer>
   );
 }
 
@@ -143,8 +147,8 @@ function MenuItem({ label, danger, onPress }: { label: string; danger?: boolean;
 }
 
 const styles = StyleSheet.create({
-  content: { flexGrow: 1, gap: space.lg, padding: space.lg, paddingBottom: space.xxl, backgroundColor: colors.bg },
-  header: { minHeight: 64, paddingHorizontal: space.md, flexDirection: 'row', alignItems: 'center', gap: space.md },
+  content: { flexGrow: 1, gap: space.lg, padding: space.lg, paddingBottom: space.xxl, backgroundColor: colors.bgElevated },
+  header: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md, backgroundColor: colors.bgElevated, borderWidth: 0 },
   back: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   card: { alignItems: 'center', gap: space.md, padding: space.xl },
   avatar: { width: 96, height: 96, borderRadius: 48, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.hairline },

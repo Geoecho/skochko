@@ -1,11 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useState, type PropsWithChildren } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { useRouter } from 'next/navigation';
+import { Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useOpenSettings } from '@/features/settings/SettingsDrawerContext';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/lib/supabase';
-import { Button, Glass, Icon, IconButton, Text } from '@/ui';
-import { WebDialog } from '@/ui/WebDialog';
+import { Button, Icon, IconButton, Text } from '@/ui';
 import { colors, radius, space } from '@/theme/tokens';
+import { SideDrawer } from '@/ui/SideDrawer';
 
 type AuthReason = 'save' | 'rate' | 'publish' | 'favourite' | 'account';
 type PendingRequest = { reason: AuthReason; onSuccess: () => void };
@@ -15,6 +15,7 @@ const RequireAuthContext = createContext<RequireAuthState | null>(null);
 
 export function RequireAuthProvider({ children, signedIn }: PropsWithChildren<{ signedIn: boolean }>) {
   const [request, setRequest] = useState<PendingRequest | null>(null);
+  const dismiss = useCallback(() => setRequest(null), []);
 
   // Signed in while a request was pending: finish it on the next tick (after this render commits).
   useEffect(() => {
@@ -41,7 +42,7 @@ export function RequireAuthProvider({ children, signedIn }: PropsWithChildren<{ 
     <RequireAuthContext.Provider value={{ requireAuth }}>
       {children}
       {/* key: a fresh sheet (empty password, idle state) every time it opens */}
-      <SignInSheet key={request ? `open-${request.reason}` : 'closed'} visible={!!request} reason={request?.reason} onDismiss={() => setRequest(null)} />
+      <SignInSheet key={request ? `open-${request.reason}` : 'closed'} visible={!!request} reason={request?.reason} onDismiss={dismiss} />
     </RequireAuthContext.Provider>
   );
 }
@@ -54,12 +55,13 @@ export function useRequireAuth() {
 
 function SignInSheet({ visible, reason, onDismiss }: { visible: boolean; reason?: AuthReason; onDismiss: () => void }) {
   const { t } = useTranslation();
-  const router = useRouter();
-  const drawer = reason === 'account';
+  const openSettings = useOpenSettings();
+  const showSettings = reason === 'account';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordMode, setPasswordMode] = useState(true);
   const [creatingAccount, setCreatingAccount] = useState(false);
+  const [confirmationSent, setConfirmationSent] = useState(false);
   const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
   const [errorKey, setErrorKey] = useState('auth.signInError');
@@ -69,42 +71,53 @@ function SignInSheet({ visible, reason, onDismiss }: { visible: boolean; reason?
     setState('error');
   };
 
-  const submit = async () => {
+  const send = async (resendConfirmation = false) => {
     if (state === 'sending') return;
     const cleanEmail = email.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       showError('auth.invalidEmail');
       return;
     }
-    if (passwordMode && (!password || (creatingAccount && password.length < 6))) {
+    if (!resendConfirmation && passwordMode && (!password || (creatingAccount && password.length < 6))) {
       showError(creatingAccount ? 'auth.shortPassword' : 'auth.missingPassword');
       return;
     }
     setState('sending');
+    const emailRedirectTo = Platform.OS === 'web' && typeof window !== 'undefined'
+      ? new URL('/auth/callback', window.location.origin).href
+      : undefined;
     try {
+      if (resendConfirmation) {
+        const { error } = await supabase.auth.resend({ type: 'signup', email: cleanEmail, options: { emailRedirectTo } });
+        if (error) { showError('auth.resendConfirmationError'); return; }
+        setConfirmationSent(true);
+        setState('sent');
+        return;
+      }
       const result = passwordMode
         ? creatingAccount
-          ? await supabase.auth.signUp({ email: cleanEmail, password })
+          ? await supabase.auth.signUp({ email: cleanEmail, password, options: { emailRedirectTo } })
           : await supabase.auth.signInWithPassword({ email: cleanEmail, password })
         : await supabase.auth.signInWithOtp({
             email: cleanEmail,
-            options: {
-              emailRedirectTo:
-                Platform.OS === 'web' && typeof window !== 'undefined'
-                  ? `${window.location.origin}/auth/callback`
-                  : undefined,
-            },
+            options: { emailRedirectTo, shouldCreateUser: false },
           });
 
       if (result.error) {
-        showError(result.error.code === 'invalid_credentials' ? 'auth.invalidCredentials' : 'auth.signInError');
+        const code = result.error.code;
+        showError(code === 'email_not_confirmed' ? 'auth.emailNotConfirmed'
+          : code === 'invalid_credentials' ? 'auth.invalidCredentials' : 'auth.signInError');
         return;
       }
+      setConfirmationSent(creatingAccount && !result.data.session);
       setState(!passwordMode || (creatingAccount && !result.data.session) ? 'sent' : 'idle');
     } catch {
       showError('auth.connectionError');
     }
   };
+
+  const submit = () => { void send(); };
+  const resend = () => { void send(true); };
 
   const reasonKey: Record<AuthReason, string> = {
     save: 'auth.saveRoutePrompt',
@@ -114,9 +127,11 @@ function SignInSheet({ visible, reason, onDismiss }: { visible: boolean; reason?
     account: 'auth.accountPrompt',
   };
 
-  const form = (
-    <Glass strong rounded={radius.sheet} style={[styles.sheet, drawer && styles.drawer]}>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, drawer && drawerInsets]}>
+  if (!visible) return null;
+
+  return (
+    <SideDrawer label={t('auth.signInTitle')} onDismiss={onDismiss}>
+      <ScrollView keyboardShouldPersistTaps="handled" style={styles.scroll} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View style={styles.icon}><Icon name="user" size={24} color={colors.accent} playOnMount /></View>
           <IconButton icon="close" label={t('common.close')} tone="plain" onPress={onDismiss} />
@@ -124,9 +139,10 @@ function SignInSheet({ visible, reason, onDismiss }: { visible: boolean; reason?
         <Text variant="title" weight="bold">{t(creatingAccount ? 'auth.signUpButton' : 'auth.signInTitle')}</Text>
         <Text tone="secondary">{reason ? t(reasonKey[reason]) : t('auth.signInSubtitle')}</Text>
         {state === 'sent' ? (
-          <View style={styles.status}>
+          <View accessibilityLiveRegion="polite" style={styles.status}>
             <Text variant="headline" weight="semibold">{t('auth.magicLinkSent')}</Text>
             <Text tone="secondary">{t('auth.emailSentDetail', { email: email.trim() })}</Text>
+            {confirmationSent && <Button label={t('auth.resendConfirmation')} variant="secondary" full onPress={resend} />}
             <Button label={t('common.done')} full onPress={onDismiss} />
           </View>
         ) : (
@@ -139,6 +155,7 @@ function SignInSheet({ visible, reason, onDismiss }: { visible: boolean; reason?
               keyboardType="email-address"
               placeholder={t('auth.emailPlaceholder')}
               placeholderTextColor={colors.textTertiary}
+              editable={state !== 'sending'}
               value={email}
               onChangeText={(value) => { setEmail(value); if (state === 'error') setState('idle'); }}
               onSubmitEditing={passwordMode ? undefined : submit}
@@ -155,6 +172,7 @@ function SignInSheet({ visible, reason, onDismiss }: { visible: boolean; reason?
                   secureTextEntry
                   returnKeyType="go"
                   onSubmitEditing={submit}
+                  editable={state !== 'sending'}
                   value={password}
                   onChangeText={(value) => { setPassword(value); if (state === 'error') setState('idle'); }}
                   style={styles.input}
@@ -162,6 +180,9 @@ function SignInSheet({ visible, reason, onDismiss }: { visible: boolean; reason?
               </>
             )}
             {state === 'error' && <Text accessibilityRole="alert" tone="danger">{t(errorKey)}</Text>}
+            {state === 'error' && (errorKey === 'auth.emailNotConfirmed' || errorKey === 'auth.resendConfirmationError') && (
+              <Button label={t('auth.resendConfirmation')} variant="secondary" full onPress={resend} />
+            )}
             <Button
               label={passwordMode ? t(creatingAccount ? 'auth.signUpButton' : 'auth.signInButton') : t('auth.magicLink')}
               loading={state === 'sending'}
@@ -194,39 +215,20 @@ function SignInSheet({ visible, reason, onDismiss }: { visible: boolean; reason?
             )}
           </View>
         )}
-        {drawer && (
+        {showSettings && (
           <Button label={t('profile.settings')} variant="ghost" full onPress={() => {
             onDismiss();
-            router.push('/settings');
+            openSettings();
           }} />
         )}
       </ScrollView>
-    </Glass>
-  );
-
-  return (
-    <WebDialog visible={visible} label={t('auth.signInTitle')} fromBottom={!drawer} dismissOnBackdrop onDismiss={onDismiss}>
-      {drawer ? (
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
-          <Pressable accessible={false} onPress={onDismiss} style={StyleSheet.absoluteFill} />
-          <div className="sign-in-drawer">{form}</div>
-        </KeyboardAvoidingView>
-      ) : form}
-    </WebDialog>
+    </SideDrawer>
   );
 }
 
-const drawerInsets = {
-  paddingTop: 'max(28px, env(safe-area-inset-top, 0px))',
-  paddingBottom: 'max(32px, env(safe-area-inset-bottom, 0px))',
-  paddingLeft: 'max(28px, env(safe-area-inset-left, 0px))',
-} as object;
-
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.scrim },
-  sheet: { maxWidth: 520, width: '100%', alignSelf: 'center', backgroundColor: colors.bgElevated },
-  drawer: { maxHeight: '100%', flex: 1 },
-  content: { gap: space.md, padding: space.xl, paddingBottom: space.xxl },
+  scroll: { minHeight: 0, flex: 1 },
+  content: { gap: space.md, padding: space.lg },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   icon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   form: { gap: space.md },

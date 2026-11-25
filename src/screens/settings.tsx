@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import AsyncStorage from '@/lib/browser-storage';
 import { useRouter } from 'next/navigation';
@@ -8,17 +8,22 @@ import { useUserLocation } from '@/features/map/useUserLocation';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { supabase } from '@/lib/supabase';
 import { useConfirmation } from '@/ui/Confirmation';
-import { Button, Glass, Text } from '@/ui';
+import { Button, Glass, IconButton, Text } from '@/ui';
+import { SideDrawer } from '@/ui/SideDrawer';
 import { colors, space } from '@/theme/tokens';
 
 type DeferredInstallPrompt = Event & { prompt: () => Promise<void> };
 
-export default function SettingsScreen() {
+export default function SettingsScreen({ onDismiss }: { onDismiss?: () => void }) {
   const router = useRouter();
+  const dismiss = useCallback(() => {
+    if (onDismiss) onDismiss();
+    else router.replace('/profile');
+  }, [onDismiss, router]);
   const confirm = useConfirmation();
   const { t } = useTranslation();
   const { session, refreshProfile } = useAuth();
-  const { openPrivacy } = useUserLocation();
+  const { openPrivacy, openPrivacyPolicy } = useUserLocation();
   const [installPromptAvailable, setInstallPromptAvailable] = useState(false);
   const promptRef = useRef<DeferredInstallPrompt | null>(null);
   const isIos = Platform.OS === 'web' && typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
@@ -66,53 +71,53 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <Glass strong style={styles.header}>
-        <Pressable accessibilityRole="button" accessibilityLabel={t('common.back')} onPress={() => router.back()} style={styles.back}>
-          <Text variant="headline">‹</Text>
-        </Pressable>
-        <Text variant="title" weight="bold">{t('profile.settings')}</Text>
-      </Glass>
-
-      <Glass style={styles.card}>
-        <Text variant="headline" weight="bold">{t('profile.language')}</Text>
-        <View style={styles.languageRow}>
-          <LanguageButton locale="mk" label="Македонски" selected={i18n.language === 'mk'} onPress={changeLanguage} />
-          <LanguageButton locale="en" label="English" selected={i18n.language === 'en'} onPress={changeLanguage} />
+    <SideDrawer label={t('profile.settings')} onDismiss={dismiss}>
+        <View style={styles.header}>
+          <Text variant="title" weight="bold">{t('profile.settings')}</Text>
+          <IconButton icon="close" label={t('common.close')} tone="plain" onPress={dismiss} />
         </View>
-      </Glass>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+          <Glass style={styles.card}>
+            <Text variant="headline" weight="bold">{t('profile.language')}</Text>
+            <View style={styles.languageRow}>
+              <LanguageButton locale="mk" label="Македонски" selected={i18n.language === 'mk'} onPress={changeLanguage} />
+              <LanguageButton locale="en" label="English" selected={i18n.language === 'en'} onPress={changeLanguage} />
+            </View>
+          </Glass>
 
-      <Glass style={styles.card}>
-        <Text variant="headline" weight="bold">{t('locationPrivacy.policyTitle')}</Text>
-        <Button label={t('locationPrivacy.manage')} variant="ghost" full onPress={openPrivacy} />
-      </Glass>
+          <Glass style={styles.card}>
+            <Text variant="headline" weight="bold">{t('privacyPolicy.title')}</Text>
+            <Button label={t('privacyPolicy.read')} variant="secondary" full onPress={openPrivacyPolicy} />
+            <Button label={t('locationPrivacy.manage')} variant="ghost" full onPress={openPrivacy} />
+          </Glass>
 
-      {Platform.OS === 'web' && (isIos || installPromptAvailable) && (
-        <Glass style={styles.card}>
-          <Text variant="headline" weight="bold">{t('install.title')}</Text>
-          {isIos ? (
-            <>
-              <Text tone="secondary">{t('install.iosStep1')}</Text>
-              <Text tone="secondary">{t('install.iosStep2')}</Text>
-            </>
-          ) : (
-            <Button label={t('install.androidButton')} full onPress={install} />
+          {Platform.OS === 'web' && (isIos || installPromptAvailable) && (
+            <Glass style={styles.card}>
+              <Text variant="headline" weight="bold">{t('install.title')}</Text>
+              {isIos ? (
+                <>
+                  <Text tone="secondary">{t('install.iosStep1')}</Text>
+                  <Text tone="secondary">{t('install.iosStep2')}</Text>
+                </>
+              ) : (
+                <Button label={t('install.androidButton')} full onPress={install} />
+              )}
+            </Glass>
           )}
-        </Glass>
-      )}
 
-      <Glass style={styles.card}>
-        <Text variant="headline" weight="bold" tone="danger">{t('profile.deleteAccount')}</Text>
-        <Text tone="secondary">{t('profile.deleteAccountConfirm')}</Text>
-        <Button label={t('profile.deleteAccount')} variant="secondary" full loading={deleting} disabled={!session} onPress={() => confirm({
-          title: t('profile.deleteAccount'),
-          message: t('profile.deleteAccountConfirm'),
-          confirmLabel: t('common.delete'),
-          destructive: true,
-          onConfirm: deleteAccount,
-        })} />
-      </Glass>
-    </ScrollView>
+          <Glass style={styles.card}>
+            <Text variant="headline" weight="bold" tone="danger">{t('profile.deleteAccount')}</Text>
+            <Text tone="secondary">{t('profile.deleteAccountConfirm')}</Text>
+            <Button label={t('profile.deleteAccount')} variant="secondary" full loading={deleting} disabled={!session} onPress={() => confirm({
+              title: t('profile.deleteAccount'),
+              message: t('profile.deleteAccountConfirm'),
+              confirmLabel: t('common.delete'),
+              destructive: true,
+              onConfirm: deleteAccount,
+            })} />
+          </Glass>
+        </ScrollView>
+    </SideDrawer>
   );
 }
 
@@ -131,9 +136,9 @@ function LanguageButton({ locale, label, selected, onPress }: { locale: Locale; 
 }
 
 const styles = StyleSheet.create({
-  content: { flexGrow: 1, gap: space.lg, padding: space.lg, paddingBottom: space.xxl, backgroundColor: colors.bg },
-  header: { minHeight: 64, paddingHorizontal: space.md, flexDirection: 'row', alignItems: 'center', gap: space.md },
-  back: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  scroll: { minHeight: 0, flex: 1 },
+  content: { gap: space.md, padding: space.lg, paddingTop: 0 },
+  header: { minHeight: 60, paddingHorizontal: space.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md },
   card: { gap: space.md, padding: space.lg },
   languageRow: { flexDirection: 'row', gap: space.sm },
   languageButton: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.1)' },

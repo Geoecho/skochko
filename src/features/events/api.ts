@@ -104,6 +104,28 @@ async function fetchTonightEvents(): Promise<TonightEvent[]> {
   );
 }
 
+export function useLiveEventBanners() {
+  return useQuery({
+    queryKey: ['live-event-banners'],
+    queryFn: async () => {
+      const now = new Date().toISOString();
+      if (process.env.NEXT_PUBLIC_USE_MOCK === '1') {
+        return mockEvents().filter(event => event.starts_at <= now && event.ends_at && event.ends_at > now);
+      }
+      const { data, error } = await supabase.from('events')
+        .select('id, venue_id, title_en, title_mk, starts_at, ends_at, cover_url')
+        .eq('status', 'active')
+        .lte('starts_at', now)
+        .gt('ends_at', now)
+        .order('ends_at')
+        .limit(12);
+      if (error) throw error;
+      return data ?? [];
+    },
+    refetchInterval: 30_000,
+  });
+}
+
 export function useTonightEvents() {
   return useQuery({
     queryKey: ['events-tonight', new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Skopje' })],

@@ -10,7 +10,7 @@ export const CTA_HEIGHT = 56;
 export const CTA_INSET = CTA_HEIGHT + space.md * 2;
 
 // Docked above the bottom sheet at every snap point: [route (edit)]  [ ▶ Start crawl · N stops ]
-export function RouteCTA({ count, onStart, onEdit }: { count: number; onStart: () => void; onEdit: () => void }) {
+export function RouteCTA({ count, onStart, onEdit, editing = false }: { count: number; onStart: () => void; onEdit: () => void; editing?: boolean }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const playRef = useRef<IconHandle>(null);
@@ -21,14 +21,14 @@ export function RouteCTA({ count, onStart, onEdit }: { count: number; onStart: (
       <Glass rounded={radius.sm} strong style={styles.edit}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`${t('route.edit')}, ${t('route.stopsCount', { count })}`}
+          accessibilityLabel={editing ? t('nav.browse') : `${t('route.edit')}, ${t('route.stopsCount', { count })}`}
           onPress={() => {
             routeRef.current?.play();
             onEdit();
           }}
           style={({ pressed }) => [styles.editHit, pressed && styles.pressed]}
         >
-          <Icon ref={routeRef} name="route" size={22} color={colors.text} />
+          <Icon ref={routeRef} name={editing ? 'compass' : 'route'} size={22} color={colors.text} />
           <View style={styles.badge}>
             <Text variant="caption" weight="bold" tone="onAccent" style={styles.badgeText}>{count}</Text>
           </View>

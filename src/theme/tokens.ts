@@ -5,8 +5,8 @@ export const colors = {
   bg: '#0B0B0F',
   bgElevated: '#141419',
   text: '#F5F5F7',
-  textSecondary: '#A1A1AA',
-  textTertiary: '#71717A',
+  textSecondary: '#B2B1BE',
+  textTertiary: '#94919F',
   // Periwinkle for text, icons and route lines on dark surfaces.
   accent: '#B5ABFF',
   accentPressed: '#9C8EF4',
@@ -16,7 +16,7 @@ export const colors = {
   onAccent: '#FFFFFF',
   danger: '#FF6B81',
   success: '#34D399',
-  hairline: 'rgba(255,255,255,0.12)',
+  hairline: 'rgba(255,255,255,0.09)',
   // Liquid glass: low-alpha tint + blur; the map shows through.
   glass: 'rgba(60,60,74,0.30)',
   glassStrong: 'rgba(52,52,66,0.42)',
@@ -55,14 +55,14 @@ export const type = {
   caption: { fontSize: 13, lineHeight: 18 },
   body: { fontSize: 15, lineHeight: 22 },
   headline: { fontSize: 17, lineHeight: 24 },
-  title: { fontSize: 22, lineHeight: 28 },
-  display: { fontSize: 28, lineHeight: 34 },
+  title: { fontSize: 24, lineHeight: 31 },
+  display: { fontSize: 30, lineHeight: 37 },
 } as const;
 
 // 4 pt grid
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 
-export const radius = { sm: 10, card: 16, sheet: 28, pill: 999 } as const;
+export const radius = { sm: 12, card: 18, sheet: 24, pill: 999 } as const;
 
 export const touch = { min: 44 } as const;
 

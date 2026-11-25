@@ -1,10 +1,12 @@
-import { Image, StyleSheet, View } from 'react-native';
+import { Image, Linking, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Button, Glass, IconButton, Text } from '@/ui';
 import { colors, radius, space, touch } from '@/theme/tokens';
 import type { NearbyVenue, TonightEvent } from '@/types/domain';
 import { MAX_STOPS, useRouteBuilder } from '@/state/routeBuilder';
 import { useFavourites } from './favourites';
+import { useGoogleVenueDetails } from './googleDetails';
+import { categoryIconUri } from '@/features/map/categoryIcons';
 
 type Props = {
   venue: NearbyVenue;
@@ -30,8 +32,11 @@ function todayHours(venue: NearbyVenue): string | null {
 export function VenueDetail({ venue, event, onBack }: Props) {
   const { i18n, t } = useTranslation();
   const favourites = useFavourites();
+  const { data: google, isLoading: reviewsLoading, isError: reviewsError } = useGoogleVenueDetails(venue.id, venue.name);
   const saved = favourites.venues.some(item => item.id === venue.id);
   const hours = todayHours(venue);
+  const website = venue.website && /^https?:\/\//i.test(venue.website) ? venue.website : null;
+  const phone = venue.phone?.replace(/[^+\d]/g, '');
   const hasHours = !!venue.hours && Object.keys(venue.hours).length > 0;
   const walkMinutes = Math.max(1, Math.ceil(venue.distance_m / 80));
   const eventTitle = event
@@ -65,9 +70,10 @@ export function VenueDetail({ venue, event, onBack }: Props) {
       <View style={styles.body}>
         <View style={styles.titleBlock}>
           <Text variant="display" weight="bold">{venue.name}</Text>
-          <Text tone="secondary">
-            {t(`categories.${venue.category}`)}{venue.price_level ? ` · ${'€'.repeat(venue.price_level)}` : ''}
-          </Text>
+          <View style={styles.category}>
+            <Image source={{ uri: categoryIconUri(venue.category, 22, colors.category[venue.category]) }} style={styles.categoryIcon} />
+            <Text tone="secondary">{t(`categories.${venue.category}`)}{venue.price_level ? ` · ${'€'.repeat(venue.price_level)}` : ''}</Text>
+          </View>
         </View>
 
         <View style={styles.factGrid}>
@@ -109,13 +115,30 @@ export function VenueDetail({ venue, event, onBack }: Props) {
         ) : null}
 
         {venue.address ? <Text tone="secondary">{venue.address}</Text> : null}
+        {phone ? <Button label={`${t('venue.phone')} · ${venue.phone}`} variant="secondary" onPress={() => void Linking.openURL(`tel:${phone}`).catch(() => {})} /> : null}
+        {website ? <Button label={t('venue.website')} variant="secondary" onPress={() => void Linking.openURL(website).catch(() => {})} /> : null}
+        <View style={styles.reviews}>
+            <Text variant="headline" weight="bold">{t(google ? 'venue.googleReviews' : 'venue.reviewsTitle')}</Text>
+            {reviewsLoading ? <Text tone="secondary">{t('common.loading')}</Text> : reviewsError ? (
+              <Text tone="secondary">{t('venue.reviewsUnavailable')}</Text>
+            ) : !google?.reviews.length ? <Text tone="secondary">{t('venue.noWrittenReviews')}</Text> : null}
+            {google?.rating ? <Text tone="secondary">★ {google.rating.toFixed(1)}{google.count ? ` · ${t('venue.reviews', { count: google.count })}` : ''}</Text> : null}
+            {google?.reviews.map((review) => (
+              <View key={review.id} style={styles.review}>
+                <Text weight="semibold">{review.author}{review.rating ? ` · ★ ${review.rating}` : ''}</Text>
+                <Text tone="secondary">{review.text}</Text>
+                {review.url && <a className="venue-review-link" href={review.url} target="_blank" rel="noopener noreferrer">{t('venue.readGoogleReview')}</a>}
+              </View>
+            ))}
+            {google?.url && <a className="venue-review-link" href={google.url} target="_blank" rel="noopener noreferrer">{t('venue.openGoogleMaps')}</a>}
+          </View>
 
       </View>
     </View>
   );
 }
 
-export function VenueActions({ venue, onViewRoute }: { venue: NearbyVenue; onViewRoute: () => void }) {
+export function VenueActions({ venue, onViewRoute, onAddAnother }: { venue: NearbyVenue; onViewRoute: () => void; onAddAnother: () => void }) {
   const { t } = useTranslation();
   const add = useRouteBuilder(state => state.add);
   const stops = useRouteBuilder(state => state.stops);
@@ -124,12 +147,14 @@ export function VenueActions({ venue, onViewRoute }: { venue: NearbyVenue; onVie
 
   return (
     <div className="venue-action-dock">
+      {added && <Text variant="caption" tone="accent" accessibilityLiveRegion="polite">{t('route.stopAdded')}</Text>}
+      {added && !atLimit && <Button full label={t('route.addMoreStops')} onPress={onAddAnother} />}
       <Button
-          full
-          variant={added || atLimit ? "ghost" : "primary"}
-          label={added || atLimit ? t('route.viewRouteCount', { count: stops.length }) : t('route.addStop')}
-          onPress={() => added || atLimit ? onViewRoute() : add(venue)}
-        />
+        full
+        variant={added || atLimit ? 'secondary' : 'primary'}
+        label={added || atLimit ? t('route.viewRouteCount', { count: stops.length }) : t('route.addStop')}
+        onPress={() => added || atLimit ? onViewRoute() : add(venue)}
+      />
     </div>
   );
 }
@@ -142,6 +167,10 @@ const styles = StyleSheet.create({
   saveError: { marginHorizontal: space.lg, marginBottom: space.md },
   body: { paddingHorizontal: space.lg, paddingTop: space.md, gap: space.lg },
   titleBlock: { gap: space.xs },
+  category: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  categoryIcon: { width: 22, height: 22 },
+  reviews: { gap: space.sm },
+  review: { gap: space.xs, borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, paddingTop: space.sm },
   factGrid: { flexDirection: 'row', gap: space.sm },
   fact: { flex: 1, minHeight: 92, borderRadius: radius.card, padding: space.md, gap: 2 },
   tonightCard: { borderRadius: radius.card, padding: space.md, backgroundColor: 'rgba(181,171,255,0.09)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(181,171,255,0.25)', flexDirection: 'row', alignItems: 'center', gap: space.md },

@@ -34,11 +34,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
     AsyncStorage.getItem('skochko.locale').then((locale) => {
       if (locale === 'mk' || locale === 'en') i18n.changeLanguage(locale);
     });
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setReady(true);
+    const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      setSession(nextSession);
+      if (event === 'INITIAL_SESSION') setReady(true);
     });
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => setSession(nextSession));
     return () => data.subscription.unsubscribe();
   }, []);
 

@@ -17,6 +17,7 @@ type UserLocationState = {
   issue: LocationIssue | null;
   locate: () => void;
   openPrivacy: () => void;
+  openPrivacyPolicy: () => void;
 };
 
 const LocationContext = createContext<UserLocationState | null>(null);
@@ -25,7 +26,7 @@ export function UserLocationProvider({ children, ageConfirmed }: PropsWithChildr
   const pathname = usePathname();
   const [ready, setReady] = useState(false);
   const [decision, setDecision] = useState<Decision | null>(null);
-  const [privacyMode, setPrivacyMode] = useState<'consent' | 'recovery' | null>(null);
+  const [privacyMode, setPrivacyMode] = useState<'consent' | 'recovery' | 'policy' | null>(null);
   const [userLocation, setUserLocation] = useState<LatLng | null>(null);
   const [locating, setLocating] = useState(false);
   const [issue, setIssue] = useState<LocationIssue | null>(null);
@@ -152,17 +153,21 @@ export function UserLocationProvider({ children, ageConfirmed }: PropsWithChildr
       issue,
       locate,
       openPrivacy,
+      openPrivacyPolicy: () => setPrivacyMode('policy'),
     }}>
       {children}
       <LocationPrivacy
         visible={ageConfirmed && (privacyMode !== null || onboarding)}
         issue={privacyMode === 'recovery' ? issue : null}
+        showPolicy={privacyMode === 'policy'}
+        onShowPolicy={() => setPrivacyMode('policy')}
+        onBackToConsent={() => setPrivacyMode('consent')}
         locating={locating}
         allowed={decision === 'allowed'}
         onAllow={() => saveDecision('allowed')}
         onSkip={() => saveDecision('declined')}
         onRetry={() => requestLocation(true)}
-        onClose={onboarding ? () => saveDecision('declined') : () => setPrivacyMode(null)}
+        onClose={onboarding && privacyMode !== 'policy' ? () => saveDecision('declined') : () => setPrivacyMode(null)}
       />
     </LocationContext.Provider>
   );

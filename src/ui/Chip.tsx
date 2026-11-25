@@ -22,9 +22,9 @@ export function Chip({ label, selected, onPress }: { label: string; selected?: b
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: touch.min - 8,
+    minHeight: touch.min,
     paddingHorizontal: space.lg,
-    borderRadius: radius.sm,
+    borderRadius: radius.pill,
     justifyContent: 'center',
   },
 });

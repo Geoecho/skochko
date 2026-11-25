@@ -1,7 +1,6 @@
 import { createContext, useContext } from 'react';
-import { Platform, StyleSheet, View, type ViewProps } from 'react-native';
-import { blur, colors, radius } from '@/theme/tokens';
-import { supportsBackdrop } from '@/theme/glassSupport';
+import { StyleSheet, View, type ViewProps } from 'react-native';
+import { colors, radius } from '@/theme/tokens';
 
 type GlassProps = ViewProps & {
   strong?: boolean;
@@ -28,9 +27,7 @@ export function Glass({ strong, rounded = radius.card, style, children, ...rest 
         { borderRadius: rounded },
         nested
           ? { backgroundColor: strong ? colors.glassInnerStrong : colors.glassInner }
-          : supportsBackdrop
-            ? [{ backgroundColor: strong ? colors.glassStrong : colors.glass }, webGlass]
-            : [{ backgroundColor: colors.glassNoBlur }, webEdge],
+          : { backgroundColor: strong ? '#22212B' : '#1B1B23' },
         style,
       ]}
     >
@@ -38,23 +35,6 @@ export function Glass({ strong, rounded = radius.card, style, children, ...rest 
     </View>
   );
 }
-
-const webGlass =
-  Platform.OS === 'web'
-    ? ({
-        backdropFilter: `blur(${blur.glass}px) saturate(${blur.saturate}%) brightness(${blur.brightness})`,
-        WebkitBackdropFilter: `blur(${blur.glass}px) saturate(${blur.saturate}%) brightness(${blur.brightness})`,
-        // Liquid-glass edge: bright top rim, faint inner glow, soft drop shadow.
-        boxShadow: `inset 0 1px 0 ${colors.glassRim}, inset 0 0 0 1px ${colors.glassHighlight}, 0 10px 36px rgba(0,0,0,0.32)`,
-        backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.015) 38%, rgba(255,255,255,0) 100%)`,
-      } as object)
-    : null;
-
-// Rim + shine only (no blur), for browsers without backdrop-filter.
-const webEdge =
-  Platform.OS === 'web'
-    ? ({ boxShadow: `inset 0 1px 0 ${colors.glassRim}, 0 10px 36px rgba(0,0,0,0.32)` } as object)
-    : null;
 
 const styles = StyleSheet.create({
   base: {

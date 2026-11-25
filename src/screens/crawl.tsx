@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useConfirmation } from '@/ui/Confirmation';
 import { Button, Glass, Text } from '@/ui';
+import { useReducedMotion } from '@/lib/use-reduced-motion';
 import { colors, radius, space, touch } from '@/theme/tokens';
 import { MapView } from '@/features/map/MapView';
 import { useUserLocation } from '@/features/map/useUserLocation';
-import { useRouteBuilder } from '@/state/routeBuilder';
+import { routeDraftSignature, useRouteBuilder } from '@/state/routeBuilder';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { haversineDistance, streetDistance, walkingTimeMinutes } from '@/features/route/optimize';
 import { DirectionsLink } from '@/features/route/DirectionsLink';
@@ -33,7 +34,7 @@ function arrowFor(type?: string, modifier?: string): string {
     default: return '↑';
   }
 }
-const CARD_HEIGHT = 300;
+
 
 function walkedDistance(crawl: ActiveCrawl): number {
   // Street-adjusted distance between consecutive visited stops, in route order.
@@ -48,7 +49,10 @@ export default function CrawlScreen() {
   const confirm = useConfirmation();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { session } = useAuth();
+  const { height } = useWindowDimensions();
+  const reduceMotion = useReducedMotion();
+  const [panelHeight, setPanelHeight] = useState(210);
+  const { session, ready } = useAuth();
   const location = useUserLocation();
   const draft = useRouteBuilder();
   const [crawl, setCrawl] = useState<ActiveCrawl | null>(null);
@@ -63,17 +67,19 @@ export default function CrawlScreen() {
 
   // Resume an active crawl, otherwise start one from the route draft.
   useEffect(() => {
-    if (startedRef.current) return;
+    if (!ready || startedRef.current) return;
     startedRef.current = true;
     (async () => {
       const existing = await loadActiveCrawl();
       if (existing && !existing.isCompleted) return setCrawl(existing);
       if (draft.stops.length < 1) return router.replace('/');
-      const dbCrawlId = session ? await startDBCrawl(session.user.id, draft.savedRouteId) : null;
+      const savedDraftMatches = !draft.savedDraft || (draft.savedDraft.signature === routeDraftSignature(draft.stops) && draft.savedDraft.ownerId === session?.user.id);
+      const routeId = savedDraftMatches ? draft.savedRouteId : null;
+      const dbCrawlId = session ? await startDBCrawl(session.user.id, routeId) : null;
       update({
         id: `local-${Date.now()}`,
         dbCrawlId,
-        routeId: draft.savedRouteId,
+        routeId,
         routeTitle: draft.savedRouteTitle ?? t('route.defaultTitle'),
         stops: draft.stops,
         currentStopIndex: 0,
@@ -84,7 +90,7 @@ export default function CrawlScreen() {
         isCompleted: false,
       });
     })();
-  }, [draft, router, session, t, update]);
+  }, [draft, ready, router, session, t, update]);
 
   const hasLocation = !!location.userLocation;
 
@@ -182,14 +188,14 @@ export default function CrawlScreen() {
         selectedVenueId={null}
         location={current ? { lat: current.venue.lat, lng: current.venue.lng } : location.location}
         userLocation={here}
-        sheetHeight={CARD_HEIGHT + insets.bottom}
+        sheetHeight={panelHeight}
         locating={location.locating}
         locationIssue={location.issue}
         onLocate={location.locate}
         onSelectVenue={() => {}}
         routeLine={routeLine}
         routeMuted={routeMuted}
-        fitRoute
+        fitRoute={!here}
         routeStops={markers}
       />
 
@@ -214,7 +220,10 @@ export default function CrawlScreen() {
         </Glass>
       ) : null}
 
-      <Glass strong rounded={radius.sheet} style={[styles.card, { paddingBottom: space.xl + insets.bottom }]}>
+      <View
+        onLayout={(event) => setPanelHeight(Math.ceil(event.nativeEvent.layout.height))}
+        style={[styles.card, sheetScroll, { maxHeight: height * 0.55, paddingBottom: space.md + insets.bottom }, !reduceMotion && sheetEntrance]}
+      >
         <View style={styles.dots} accessibilityLabel={`${crawl.currentStopIndex + 1} / ${crawl.stops.length}`}>
           {crawl.stops.map((s, i) => (
             <View
@@ -240,16 +249,19 @@ export default function CrawlScreen() {
                 {leg.data?.approximate ? ` · ${t('nav.approx')}` : ''}
               </Text>
             </View>
-            {(!leg.data || leg.data.approximate) && <DirectionsLink destination={current.venue} />}
+
           </View>
         ) : null}
         <Text variant="caption" tone="secondary" weight="semibold">
           {isLast ? t('crawl.lastStop') : t('crawl.currentStop')} · {crawl.currentStopIndex + 1}/{crawl.stops.length}
         </Text>
-        <Text variant="title" weight="bold" numberOfLines={1}>{current?.venue.name}</Text>
-        <Text tone="secondary" numberOfLines={1}>
-          {next ? `${t('crawl.nextStop')}: ${next.venue.name} · ${t('crawl.walkToNext', { minutes: walkMin })}` : t('crawl.lastStop')}
-        </Text>
+        <View style={styles.stopHeading}>
+          <View style={styles.stopNames}>
+            <Text variant="headline" weight="bold" numberOfLines={1}>{current?.venue.name}</Text>
+            {next && <Text tone="secondary" variant="caption" numberOfLines={1}>{t('crawl.nextStop')}: {next.venue.name} · {t('crawl.walkToNext', { minutes: walkMin })}</Text>}
+          </View>
+          {current && !checkedIn && <DirectionsLink destination={current.venue} />}
+        </View>
         {checkedIn ? (
           <Button label={isLast ? t('crawl.finishCrawl') : t('crawl.nextButton')} full onPress={advance} />
         ) : (
@@ -258,7 +270,7 @@ export default function CrawlScreen() {
             <Button label={isLast ? t('crawl.finishCrawl') : t('crawl.nextButton')} variant="secondary" onPress={advance} />
           </View>
         )}
-      </Glass>
+      </View>
     </View>
   );
 }
@@ -276,6 +288,8 @@ function ClearOnLeave() {
   return null;
 }
 
+const sheetScroll = { overflowY: 'auto', overscrollBehaviorY: 'contain' } as object;
+const sheetEntrance = { animation: 'web-dialog-enter 240ms cubic-bezier(0.22, 1, 0.36, 1) both' } as object;
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   close: { position: 'absolute', right: space.lg, zIndex: 20 },
@@ -286,9 +300,12 @@ const styles = StyleSheet.create({
   },
   toastClose: { width: touch.min, height: touch.min, alignItems: 'center', justifyContent: 'center' },
   card: {
-    position: 'absolute', left: 0, right: 0, bottom: 0, minHeight: CARD_HEIGHT,
-    padding: space.xl, gap: space.sm, borderBottomLeftRadius: 0, borderBottomRightRadius: 0,
+    position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 10,
+    padding: space.md, gap: space.xs, backgroundColor: colors.bgElevated,
+    borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline,
   },
+  stopHeading: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  stopNames: { flex: 1, minWidth: 0 },
   dots: { flexDirection: 'row', gap: 6, marginBottom: space.xs },
   dot: { flex: 1, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.14)' },
   dotDone: { backgroundColor: colors.accentFill },

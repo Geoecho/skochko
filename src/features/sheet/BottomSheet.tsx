@@ -12,6 +12,7 @@ export type BottomSheetHandle = { snapTo: (snap: SheetSnap) => void };
 
 type Props = {
   children: ReactNode;
+  onBrowsePress?: () => void;
   onSnapChange?: (snap: SheetSnap, visibleHeight: number) => void;
   footerInset?: number;
   docked?: boolean;
@@ -22,7 +23,7 @@ type Props = {
 export const PEEK_BASE = 52 + space.lg * 2;
 
 export const BottomSheet = forwardRef<BottomSheetHandle, Props>(function BottomSheet(
-  { children, onSnapChange, footerInset = 0, docked = false, footer, contentKey },
+  { children, onBrowsePress, onSnapChange, footerInset = 0, docked = false, footer, contentKey },
   ref,
 ) {
   const { t } = useTranslation();
@@ -50,16 +51,16 @@ export const BottomSheet = forwardRef<BottomSheetHandle, Props>(function BottomS
   useEffect(() => onSnapChange?.(snap, visibleHeight), [onSnapChange, snap, visibleHeight]);
 
   const startDrag = (event: PointerEvent<HTMLDivElement>) => {
-    if (!event.isPrimary || event.button !== 0) return;
+    if (!event.isPrimary || event.button !== 0 || (event.target as HTMLElement).closest('.sheet-collapse')) return;
     ignoreClickUntil.current = 0;
     drag.current = { id: event.pointerId, y: event.clientY, top: positions[snap], moved: false };
+    (event.target as Element).setPointerCapture(event.pointerId);
   };
   const moveDrag = (event: PointerEvent<HTMLDivElement>) => {
     const start = drag.current;
     if (!start || start.id !== event.pointerId) return;
     const delta = event.clientY - start.y;
-    if (!start.moved && Math.abs(delta) < 8) return;
-    if (!start.moved) event.currentTarget.setPointerCapture(event.pointerId);
+    if (!start.moved && Math.abs(delta) < 5) return;
     start.moved = true;
     setDragTop(Math.min(peek, Math.max(full, start.top + delta)));
   };
@@ -73,9 +74,9 @@ export const BottomSheet = forwardRef<BottomSheetHandle, Props>(function BottomS
     if (event.type !== 'pointerup') return;
     const releaseTop = start.top + event.clientY - start.y;
     const delta = releaseTop - start.top;
-    if (Math.abs(delta) < 30) return;
-    if (delta < 0) snapTo(snap === 'peek' ? 'half' : 'full');
-    else snapTo(snap === 'full' && delta < 150 ? 'half' : 'peek');
+    if (Math.abs(delta) < 18) return;
+    if (delta < 0) snapTo(snap === 'peek' && releaseTop > (full + half) / 2 ? 'half' : 'full');
+    else snapTo(snap === 'full' && releaseTop < (half + peek) / 2 ? 'half' : 'peek');
   };
 
   const scrollContent = (
@@ -90,7 +91,7 @@ export const BottomSheet = forwardRef<BottomSheetHandle, Props>(function BottomS
   );
 
   if (docked) {
-    return <div style={dockedStyle}>{scrollContent}{footer}</div>;
+    return <div style={dockedStyle}>{scrollContent}{footer ? <div style={{ paddingBottom: footerInset, flexShrink: 0 }}>{footer}</div> : null}</div>;
   }
 
   return (
@@ -107,7 +108,6 @@ export const BottomSheet = forwardRef<BottomSheetHandle, Props>(function BottomS
         onPointerUp={finishDrag}
         onPointerCancel={finishDrag}
         onLostPointerCapture={finishDrag}
-        onPointerLeave={(event) => { if (!drag.current?.moved) finishDrag(event); }}
       >
         {collapsed ? <Pressable
           accessibilityRole="button"
@@ -115,6 +115,7 @@ export const BottomSheet = forwardRef<BottomSheetHandle, Props>(function BottomS
           onPress={() => {
             if (Date.now() < ignoreClickUntil.current) return;
             icon.current?.play();
+            onBrowsePress?.();
             snapTo('half');
           }}
           style={({ pressed }) => [
@@ -126,7 +127,7 @@ export const BottomSheet = forwardRef<BottomSheetHandle, Props>(function BottomS
         >
           <Icon ref={icon} name="compass" size={20} color={colors.onAccent} />
           <Text variant="headline" weight="semibold" tone="onAccent">{t('nav.browse')}</Text>
-        </Pressable> : (
+        </Pressable> : (<>
           <button
             type="button"
             className="sheet-grip"
@@ -135,11 +136,14 @@ export const BottomSheet = forwardRef<BottomSheetHandle, Props>(function BottomS
               if (Date.now() >= ignoreClickUntil.current) snapTo(snap === 'full' ? 'half' : 'full');
             }}
           ><span /></button>
-        )}
+          <button type="button" className="sheet-collapse" aria-label={t('nav.shrinkSheet')} onClick={() => snapTo('peek')}>
+            <Icon name="back" size={20} />
+          </button>
+        </>)}
       </div>
       <div inert={collapsed} style={{ flex: 1, minHeight: 0, flexDirection: 'column', display: 'flex', visibility: collapsed ? 'hidden' : 'visible' }}>
         {scrollContent}
-        {footer ? <div style={{ flexShrink: 0, paddingBottom: insets.bottom }}>{footer}</div> : null}
+        {footer ? <div style={{ flexShrink: 0, paddingBottom: insets.bottom + footerInset }}>{footer}</div> : null}
       </div>
     </section>
   );

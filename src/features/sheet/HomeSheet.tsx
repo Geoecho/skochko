@@ -16,9 +16,10 @@ import {
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { Icon, Button, Chip, Text } from '@/ui';
+import { Icon, IconButton, Button, Chip, Text } from '@/ui';
 import { RoutesTab } from '@/features/community/RoutesTab';
 import { ExploreCarousels } from './ExploreCarousels';
+import { LiveEventBanners } from '@/features/events/LiveEventBanners';
 import { categoryIconUri } from '@/features/map/categoryIcons';
 import { colors, radius, space, touch } from '@/theme/tokens';
 import type { VenueCategory } from '@/theme/tokens';
@@ -197,12 +198,20 @@ export const HomeSheet = forwardRef<HomeSheetHandle, Props>(function HomeSheet(
   // Carousels when browsing; a flat results list once the user searches or filters.
   const browsing = !searchNeedle && !filters.categories?.length && !filters.openNow;
 
-  useImperativeHandle(ref, () => ({ focusSearch: () => inputRef.current?.focus() }), []);
+  useImperativeHandle(ref, () => ({ focusSearch: () => { setTab('explore'); inputRef.current?.focus(); } }), []);
 
-  const filteredVenues = useMemo(
-    () => venues.filter((venue) => matches(`${venue.name} ${venue.address ?? ''}`, searchNeedle)),
-    [searchNeedle, venues],
-  );
+  const filteredVenues = useMemo(() => {
+    if (!searchNeedle) return venues;
+    const terms = searchNeedle.split(' ');
+    return venues.map((venue) => {
+      const name = searchKey(venue.name);
+      const searchable = searchKey([venue.name, venue.address, t(`categories.${venue.category}`)].filter(Boolean).join(' '));
+      const rank = name === searchNeedle ? 3 : name.startsWith(searchNeedle) ? 2 : name.includes(searchNeedle) ? 1 : 0;
+      return { venue, rank, matches: terms.every((term) => searchable.includes(term)) };
+    }).filter((item) => item.matches)
+      .sort((a, b) => b.rank - a.rank || a.venue.distance_m - b.venue.distance_m)
+      .map((item) => item.venue);
+  }, [searchNeedle, t, venues]);
   const filteredEvents = useMemo(
     () => (searchNeedle ? events.filter((event) => matches(`${event.title_mk} ${event.title_en ?? ''} ${event.venue_name}`, searchNeedle)) : []),
     [events, searchNeedle],
@@ -220,7 +229,7 @@ export const HomeSheet = forwardRef<HomeSheetHandle, Props>(function HomeSheet(
 
   const onSearchChange = (value: string) => {
     setSearch(value);
-    if (searchKey(value)) showResults('full');
+    if (!searchNeedle && searchKey(value)) showResults('full');
   };
 
   const setCategory = (category: VenueCategory) => {
@@ -264,6 +273,8 @@ export const HomeSheet = forwardRef<HomeSheetHandle, Props>(function HomeSheet(
           autoCapitalize="none"
           autoCorrect={false}
           onChangeText={onSearchChange}
+          onFocus={() => setTab('explore')}
+          onSubmitEditing={() => { if (searchNeedle) showResults('full'); }}
           placeholder={t('common.searchPlaceholder')}
           placeholderTextColor={colors.textTertiary}
           returnKeyType="search"
@@ -271,6 +282,7 @@ export const HomeSheet = forwardRef<HomeSheetHandle, Props>(function HomeSheet(
           style={styles.searchInput}
           value={search}
         />
+        {search.length > 0 && <IconButton icon="close" tone="plain" size={17} label={t('sheet.clearSearch')} onPress={() => { setSearch(''); inputRef.current?.focus(); }} />}
       </View>
 
       {desktop ? (
@@ -296,6 +308,8 @@ export const HomeSheet = forwardRef<HomeSheetHandle, Props>(function HomeSheet(
           </Pressable>
         ))}
       </View>
+
+      {tab === 'explore' && !searchNeedle ? <LiveEventBanners venuesById={venuesById} onVenuePress={onVenuePress} /> : null}
 
       {tab === 'explore' ? (
         venuesLoading ? (
@@ -343,10 +357,10 @@ export const HomeSheet = forwardRef<HomeSheetHandle, Props>(function HomeSheet(
 
 const styles = StyleSheet.create({
   searchWrap: {
-    height: touch.min + 4,
+    height: 54,
     marginHorizontal: space.lg,
     borderRadius: radius.sm,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#202029',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.hairline,
     flexDirection: 'row',
@@ -363,7 +377,7 @@ const styles = StyleSheet.create({
     outlineStyle: 'none',
   } as never,
   desktopChips: { flexDirection: 'row', flexWrap: 'wrap' },
-  chips: { gap: space.sm, paddingHorizontal: space.lg, paddingVertical: space.sm },
+  chips: { gap: space.sm, paddingHorizontal: space.lg, paddingVertical: space.md },
   segmented: {
     marginHorizontal: space.lg,
     marginTop: space.md,
@@ -374,7 +388,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   segment: { flex: 1, minHeight: 38, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
-  segmentSelected: { backgroundColor: 'rgba(255,255,255,0.12)' },
+  segmentSelected: { backgroundColor: '#33313F' },
   routesContent: { paddingTop: space.md, alignSelf: 'stretch' },
   listContent: { paddingHorizontal: space.lg, paddingTop: space.lg, gap: space.md },
   venueRow: {
@@ -387,10 +401,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  rowIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginRight: space.md },
-  rowIconImg: { width: 18, height: 18 },
+  rowIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: space.md },
+  rowIconImg: { width: 23, height: 23 },
   resultsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  rowBody: { flex: 1, gap: 3 },
+  rowBody: { flex: 1, minWidth: 0, gap: 5 },
   rowTitleLine: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   rowTitle: { flex: 1 },
   rowMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

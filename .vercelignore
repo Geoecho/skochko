@@ -1,0 +1,8 @@
+.env
+.env.*
+.tmp/
+.npm-cache/
+.expo/
+.serena/
+.agents/
+.codex/

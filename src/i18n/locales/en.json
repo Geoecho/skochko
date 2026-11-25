@@ -40,6 +40,16 @@
     "copy": "Copy",
     "city": "Skopje"
   },
+  "privacyPolicy": {
+    "title": "Privacy policy",
+    "read": "Read privacy policy",
+    "locationTitle": "Your location",
+    "locationBody": "Location is optional. If you allow it, Skochko uses your location to show nearby places. If you ask for walking directions, the routing service receives the route coordinates.",
+    "accountTitle": "Account and saved activity",
+    "accountBody": "Supabase stores your sign-in details and profile, plus favourites, routes and activity you save to your account. Guest favourites and route drafts are stored on this device.",
+    "choicesTitle": "Your choices",
+    "choicesBody": "Use Settings to turn off location or delete your account. You can also change location permission in your browser."
+  },
   "locationPrivacy": {
     "accessTitle": "Location access",
     "openInBrowser": "Open in a browser tab",
@@ -96,6 +106,7 @@
     }
   },
   "sheet": {
+    "clearSearch": "Clear search",
     "tabs": {
       "tonight": "Tonight",
       "routes": "Routes",
@@ -124,6 +135,7 @@
     }
   },
   "tonight": {
+    "endsAt": "Until {{time}}",
     "title": "Tonight in Skopje",
     "subtitle": "Parties, live gigs and gatherings",
     "badge": "Tonight",
@@ -137,6 +149,12 @@
     "noEventsAction": "Explore open venues"
   },
   "venue": {
+    "reviewsTitle": "Reviews",
+    "noWrittenReviews": "No written reviews are available here yet.",
+    "reviewsUnavailable": "Reviews couldn’t load. Try reopening this place.",
+    "googleReviews": "Google Maps reviews",
+    "readGoogleReview": "Read on Google Maps",
+    "openGoogleMaps": "Open in Google Maps",
     "removeFavourite": "Remove from favourites",
     "stopAdded": "Stop added to your route",
     "addToRoute": "Add to route",
@@ -168,7 +186,7 @@
   },
   "route": {
     "viewRouteCount": "View route ({{count}})",
-    "addMoreStops": "Add more stops",
+    "addMoreStops": "Add another stop",
     "builderTitle": "Route builder",
     "createRoute": "Build route",
     "startCrawl": "Start crawl",
@@ -178,6 +196,7 @@
     "minStopsNotice": "Add at least 2 stops",
     "maxStopsNotice": "Maximum 8 stops reached",
     "addStop": "Add stop",
+    "stopAdded": "Stop added",
     "removeStop": "Remove",
     "reorder": "Reorder",
     "autoOrder": "Optimize route",
@@ -311,6 +330,9 @@
     "passwordPlaceholder": "Your password",
     "magicLink": "Send sign-in link",
     "magicLinkSent": "Check your inbox",
+    "resendConfirmation": "Resend confirmation email",
+    "resendConfirmationError": "Couldn’t resend the email. Wait a moment and try again.",
+    "emailNotConfirmed": "Confirm your email from your inbox, then sign in again.",
     "signInError": "We could not sign you in. Check your details and try again.",
     "orPassword": "Use password instead",
     "useMagicLink": "Use email link instead",

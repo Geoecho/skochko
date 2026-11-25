@@ -8,9 +8,19 @@ import { installGlobalErrorHandlers, reportDeviceOnce } from '@/lib/errorReporti
 import { UserLocationProvider } from '@/features/map/useUserLocation';
 import { ConfirmationProvider } from '@/ui/Confirmation';
 import { queryClient } from '@/lib/queryClient';
+import { SettingsDrawerContext } from '@/features/settings/SettingsDrawerContext';
+import SettingsScreen from '@/screens/settings';
+import ProfileScreen from '@/screens/profile';
+import { ProfileDrawerContext } from '@/features/settings/ProfileDrawerContext';
 
 export default function WebProviders({ children }: PropsWithChildren) {
   const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const openProfile = useCallback(() => setProfileOpen(true), []);
+  const closeProfile = useCallback(() => setProfileOpen(false), []);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const openSettings = useCallback(() => setSettingsOpen(true), []);
+  const closeSettings = useCallback(() => setSettingsOpen(false), []);
   const confirmAge = useCallback(() => setAgeConfirmed(true), []);
 
   useEffect(() => {
@@ -26,12 +36,20 @@ export default function WebProviders({ children }: PropsWithChildren) {
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <UserLocationProvider ageConfirmed={ageConfirmed}>
-            <ConfirmationProvider>{children}</ConfirmationProvider>
-          </UserLocationProvider>
-          <AgeGate onConfirmed={confirmAge} />
-        </AuthProvider>
+        <ProfileDrawerContext.Provider value={openProfile}>
+        <SettingsDrawerContext.Provider value={openSettings}>
+          <AuthProvider>
+            <UserLocationProvider ageConfirmed={ageConfirmed}>
+              <ConfirmationProvider>
+                {children}
+                {profileOpen && <ProfileScreen onDismiss={closeProfile} />}
+                {settingsOpen && <SettingsScreen onDismiss={closeSettings} />}
+              </ConfirmationProvider>
+            </UserLocationProvider>
+            <AgeGate onConfirmed={confirmAge} />
+          </AuthProvider>
+        </SettingsDrawerContext.Provider>
+        </ProfileDrawerContext.Provider>
       </QueryClientProvider>
     </SafeAreaProvider>
   );

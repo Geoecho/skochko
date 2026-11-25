@@ -1,6 +1,5 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Platform,
   Pressable,
   StyleSheet,
@@ -16,6 +15,7 @@ import {
   MAX_STOPS,
   MIN_MINUTES,
   STEP_MINUTES,
+  routeDraftSignature,
   useRouteBuilder,
 } from '@/state/routeBuilder';
 import { calculateRouteTotals, optimizeStops } from './optimize';
@@ -27,14 +27,14 @@ import { supabase } from '@/lib/supabase';
 type Props = {
   onClose: () => void;
   onAddStops: () => void;
-  onStartCrawl: () => void;
   userLocation?: LatLng | null;
 };
 
-export function RouteBuilder({ onClose, onAddStops, onStartCrawl, userLocation }: Props) {
+export function RouteBuilder({ onClose, onAddStops, userLocation }: Props) {
   const { t } = useTranslation();
   const { requireAuth } = useRequireAuth();
   const { session } = useAuth();
+
 
   const stops = useRouteBuilder((state) => state.stops);
   const remove = useRouteBuilder((state) => state.remove);
@@ -42,14 +42,17 @@ export function RouteBuilder({ onClose, onAddStops, onStartCrawl, userLocation }
   const updateMinutes = useRouteBuilder((state) => state.updateMinutes);
   const setStops = useRouteBuilder((state) => state.setStops);
   const clear = useRouteBuilder((state) => state.clear);
-  const savedRouteId = useRouteBuilder((state) => state.savedRouteId);
+  const savedDraft = useRouteBuilder((state) => state.savedDraft);
   const savedRouteTitle = useRouteBuilder((state) => state.savedRouteTitle);
   const setSavedRoute = useRouteBuilder((state) => state.setSavedRoute);
 
   const [title, setTitle] = useState(savedRouteTitle || t('route.defaultTitle'));
-  const [isPublic, setIsPublic] = useState(false);
+  const [isPublic, setIsPublic] = useState(savedDraft?.isPublic ?? false);
   const [saving, setSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(Boolean(savedRouteId));
+  const savingRef = useRef(false);
+  const signature = routeDraftSignature(stops);
+  const cleanTitle = title.trim() || t('route.defaultTitle');
+  const saveSuccess = !!session && savedDraft?.ownerId === session.user.id && savedDraft.signature === signature && savedDraft.isPublic === isPublic && savedRouteTitle === cleanTitle;
   const [saveError, setSaveError] = useState<string | null>(null);
   const [optimizedNotice, setOptimizedNotice] = useState(false);
 
@@ -63,47 +66,35 @@ export function RouteBuilder({ onClose, onAddStops, onStartCrawl, userLocation }
     setTimeout(() => setOptimizedNotice(false), 3000);
   }, [stops, userLocation, setStops]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = () => {
+    if (savingRef.current || !stops.length || saveSuccess) return;
     requireAuth('save', async () => {
-      if (!session) return;
+      if (savingRef.current) return;
+      savingRef.current = true;
       setSaving(true);
       setSaveError(null);
 
       try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !session) throw new Error(t('auth.signInError'));
+        const draft = { ownerId: session.user.id, signature, isPublic };
         if (process.env.NEXT_PUBLIC_USE_MOCK === '1') {
-          const mockId = `mock-route-${Date.now()}`;
-          setSavedRoute(mockId, title);
-          setSaveSuccess(true);
-          setSaving(false);
+          setSavedRoute(`mock-route-${Date.now()}`, cleanTitle, draft);
           return;
         }
 
-        const { data: city, error: cityError } = await supabase
-          .from('cities')
-          .select('id')
-          .limit(1)
-          .single();
+        const { data: city, error: cityError } = await supabase.from('cities').select('id').order('id').limit(1).single();
+        if (cityError) throw cityError;
 
-        if (cityError || !city) {
-          throw new Error(cityError?.message ?? 'Failed to load city');
-        }
-
-        const { data: route, error: routeError } = await supabase
-          .from('routes')
-          .insert({
-            owner_id: session.user.id,
-            city_id: city.id,
-            title: title.trim() || t('route.defaultTitle'),
-            visibility: isPublic ? 'public' : 'private',
-            total_distance_m: totals.walkDistanceMeters,
-            total_duration_s: totals.totalDurationMinutes * 60,
-          })
-          .select('id')
-          .single();
-
-        if (routeError || !route) {
-          throw new Error(routeError?.message ?? 'Failed to save route');
-        }
+        const { data: route, error: routeError } = await supabase.from('routes').insert({
+          owner_id: session.user.id,
+          city_id: city.id,
+          title: cleanTitle,
+          visibility: isPublic ? 'public' : 'private',
+          total_distance_m: totals.walkDistanceMeters,
+          total_duration_s: totals.totalDurationMinutes * 60,
+        }).select('id').single();
+        if (routeError) throw routeError;
 
         const { error: stopsError } = await supabase.from('route_stops').insert(
           stops.map((stop, position) => ({
@@ -113,31 +104,19 @@ export function RouteBuilder({ onClose, onAddStops, onStartCrawl, userLocation }
             planned_minutes: stop.plannedMinutes,
           })),
         );
-
         if (stopsError) {
           await supabase.from('routes').delete().eq('id', route.id);
-          throw new Error(stopsError.message);
+          throw stopsError;
         }
-
-        setSavedRoute(route.id, title);
-        setSaveSuccess(true);
+        setSavedRoute(route.id, cleanTitle, draft);
       } catch (err) {
-        setSaveError((err as Error).message || 'Save failed');
+        setSaveError(err && typeof err === 'object' && 'message' in err ? String(err.message) : t('auth.signInError'));
       } finally {
+        savingRef.current = false;
         setSaving(false);
       }
     });
-  }, [
-    requireAuth,
-    session,
-    setSavedRoute,
-    title,
-    t,
-    isPublic,
-    totals.walkDistanceMeters,
-    totals.totalDurationMinutes,
-    stops,
-  ]);
+  };
 
   const formatDistance = (meters: number): string => {
     if (meters < 1000) return `${meters} m`;
@@ -215,7 +194,6 @@ export function RouteBuilder({ onClose, onAddStops, onStartCrawl, userLocation }
           maxLength={60}
           onChangeText={(text) => {
             setTitle(text);
-            setSaveSuccess(false);
           }}
           placeholder={t('route.routeNamePlaceholder')}
           placeholderTextColor={colors.textTertiary}
@@ -270,22 +248,7 @@ export function RouteBuilder({ onClose, onAddStops, onStartCrawl, userLocation }
         </View>
       </Glass>
 
-      {/* Primary actions: kept above the stop list so they are visible at half height */}
       <View style={styles.actions}>
-        <Button
-          disabled={stops.length < 1}
-          full
-          label={t('route.startCrawlCount', { count: stops.length })}
-          onPress={onStartCrawl}
-          variant="primary"
-        />
-
-        {stops.length < 1 ? (
-          <Text style={styles.minStopsHint} tone="secondary" variant="caption">
-            {t('route.minStopsOne')}
-          </Text>
-        ) : null}
-
         <View style={styles.secondaryActions}>
           <Button
             disabled={saving || saveSuccess}
@@ -472,7 +435,6 @@ export function RouteBuilder({ onClose, onAddStops, onStartCrawl, userLocation }
           accessibilityLabel={t('route.isPublic')}
           onValueChange={(val) => {
             setIsPublic(val);
-            setSaveSuccess(false);
           }}
           thumbColor={isPublic ? colors.accent : '#71717A'}
           trackColor={{ false: 'rgba(255,255,255,0.12)', true: 'rgba(181,171,255,0.4)' }}
@@ -673,9 +635,6 @@ const styles = StyleSheet.create({
   actions: {
     paddingTop: space.sm,
     gap: space.sm,
-  },
-  minStopsHint: {
-    textAlign: 'center',
   },
   secondaryActions: {
     gap: space.sm,

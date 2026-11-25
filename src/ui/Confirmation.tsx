@@ -1,9 +1,8 @@
 import { createContext, useContext, useState, type PropsWithChildren } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { radius, space } from '@/theme/tokens';
+import { space } from '@/theme/tokens';
 import { Button } from './Button';
-import { Glass } from './Glass';
 import { Text } from './Text';
 import { WebDialog } from './WebDialog';
 
@@ -27,7 +26,7 @@ export function ConfirmationProvider({ children }: PropsWithChildren) {
       {children}
       {request && (
         <WebDialog visible label={request.title} fromBottom dismissOnBackdrop onDismiss={dismiss}>
-          <Glass strong rounded={radius.sheet} style={[styles.sheet, bottomInset]}>
+          <View style={styles.sheet}>
             <Text variant="title" weight="bold">{request.title}</Text>
             {request.message && <Text tone="secondary">{request.message}</Text>}
             <Button label={t('common.cancel')} variant="ghost" full onPress={dismiss} />
@@ -40,7 +39,7 @@ export function ConfirmationProvider({ children }: PropsWithChildren) {
                 request.onConfirm();
               }}
             />
-          </Glass>
+          </View>
         </WebDialog>
       )}
     </ConfirmationContext.Provider>
@@ -53,9 +52,7 @@ export function useConfirmation() {
   return confirm;
 }
 
-const bottomInset = { paddingBottom: 'max(32px, env(safe-area-inset-bottom, 0px))' } as object;
-
 const styles = StyleSheet.create({
-  sheet: { alignSelf: 'center', width: '100%', maxWidth: 480, gap: space.md, padding: space.xl },
+  sheet: { gap: space.md, padding: space.lg },
   destructive: { backgroundColor: '#A32842' },
 });

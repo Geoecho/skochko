@@ -16,6 +16,8 @@ export type NearbyVenue = {
   lat: number;
   lng: number;
   address: string | null;
+  phone?: string | null;
+  website?: string | null;
   price_level: 1 | 2 | 3 | null;
   hours: OpeningHours | null;
   photos: string[] | null;
