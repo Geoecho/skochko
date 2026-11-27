@@ -4,14 +4,14 @@
  * - Map style + tiles (OpenFreeMap): stale-while-revalidate, capped, so the last viewed area works offline.
  * - Supabase API: never cached (always live data, auth stays correct).
  */
-const VERSION = 'next-v1';
+const VERSION = 'light-v2';
 const SHELL = `skochko-shell-${VERSION}`;
 const STATIC = `skochko-static-${VERSION}`;
 const TILES = `skochko-tiles-${VERSION}`;
 const TILE_LIMIT = 600;
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(SHELL).then((c) => c.addAll(['/', '/manifest.webmanifest', '/map/skochko-dark.json'])).then(() => self.skipWaiting()));
+  event.waitUntil(caches.open(SHELL).then((c) => c.addAll(['/', '/manifest.webmanifest', '/map/skochko-light.json'])).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {

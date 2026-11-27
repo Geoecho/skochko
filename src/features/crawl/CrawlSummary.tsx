@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'next/navigation';
-import { Button, Glass, Text } from '@/ui';
+import { Button, Glass, Icon, Text } from '@/ui';
 import { colors, radius, space, touch } from '@/theme/tokens';
 import type { ActiveCrawl } from './types';
 import { rateDBRoute } from './api';
@@ -82,7 +82,7 @@ export function CrawlSummary({ crawl }: Props) {
       {/* Hero Header */}
       <View style={styles.hero}>
         <View style={styles.trophyWrap}>
-          <Text style={styles.trophyIcon}>🍻</Text>
+          <Icon name="finish" size={42} color={colors.text} playOnMount />
         </View>
         <Text variant="display" weight="bold" style={styles.title}>
           {t('crawl.summary.title')}
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: 'rgba(181,171,255,0.15)',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: space.sm,

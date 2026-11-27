@@ -7,22 +7,22 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Скочко',
   description: 'Бар-рути и настани вечерва околу тебе.',
+  other: { google: 'notranslate', 'apple-mobile-web-app-capable': 'yes', 'apple-mobile-web-app-title': 'Скочко' },
   manifest: '/manifest.webmanifest',
   icons: { icon: '/icons/icon-192.png', apple: '/icons/icon-192.png' },
-  appleWebApp: { capable: true, title: 'Скочко', statusBarStyle: 'black-translucent' },
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  colorScheme: 'dark',
-  themeColor: '#0B0B0F',
+  colorScheme: 'only light',
+  themeColor: '#FFFFFF',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="mk">
+    <html lang="mk" translate="no">
       <body>
         <AppProviders>{children}</AppProviders>
       </body>

@@ -8,7 +8,7 @@ export default function AdminScreen() {
   const router = useRouter();
   const pending = !ready || (!!session && !profile);
   useEffect(() => {
-    if (!pending && !isAdmin) router.replace('/');
+    if (!pending && !isAdmin) router.replace('/admin/login');
   }, [isAdmin, pending, router]);
   return !pending && isAdmin ? <AdminHome /> : null;
 }

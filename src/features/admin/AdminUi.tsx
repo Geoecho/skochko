@@ -5,7 +5,7 @@ import { useConfirmation } from '@/ui/Confirmation';
 import { Button, Glass, Text } from '@/ui';
 import { colors, radius, space, touch } from '@/theme/tokens';
 
-export type AdminTab = 'venues' | 'events' | 'promotions' | 'moderation';
+export type AdminTab = 'overview' | 'venues' | 'events' | 'promotions' | 'moderation' | 'accounts' | 'system' | 'settings';
 
 type ToastState = { message: string; tone: 'success' | 'danger' } | null;
 type ToastContextValue = { showToast: (message: string, tone?: 'success' | 'danger') => void };
@@ -31,10 +31,14 @@ export function AdminShell({ tab, onTabChange, children }: PropsWithChildren<{ t
   }, [toast]);
 
   const nav: { id: AdminTab; label: string }[] = [
+    { id: 'overview', label: t('admin.nav.overview') },
     { id: 'venues', label: t('admin.nav.venues') },
     { id: 'events', label: t('admin.nav.events') },
     { id: 'promotions', label: t('admin.nav.promotions') },
     { id: 'moderation', label: t('admin.nav.moderation') },
+    { id: 'accounts', label: t('admin.nav.accounts') },
+    { id: 'system', label: t('admin.nav.system') },
+    { id: 'settings', label: t('admin.nav.settings') },
   ];
 
   return (
@@ -50,6 +54,7 @@ export function AdminShell({ tab, onTabChange, children }: PropsWithChildren<{ t
         ) : (
           <Glass strong rounded={0} style={styles.sidebar}>
             <Text variant="title" weight="bold" style={styles.brand}>{t('admin.title')}</Text>
+            <a className="admin-back-link" href="/">{t('admin.control.backToMap')}</a>
             <View style={styles.navList}>
               {nav.map((item) => <NavItem key={item.id} active={tab === item.id} label={item.label} onPress={() => onTabChange(item.id)} />)}
             </View>
@@ -115,7 +120,7 @@ export function FilePicker({ label, multiple = false, onFiles }: { label: string
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, flexDirection: 'row', backgroundColor: colors.bg },
+  root: { flex: 1, minHeight: 0, flexDirection: 'row', backgroundColor: colors.bg },
   // Phones: nav on top, content below.
   rootCompact: { flexDirection: 'column' },
   tabsScroll: { flexGrow: 0 },
@@ -123,9 +128,9 @@ const styles = StyleSheet.create({
   brand: { marginTop: space.md, marginBottom: space.xxl },
   navList: { gap: space.xs },
   navItem: { minHeight: touch.min, paddingHorizontal: space.md, borderRadius: radius.sm, justifyContent: 'center' },
-  navItemActive: { backgroundColor: 'rgba(181,171,255,0.12)' },
-  content: { flex: 1, minWidth: 0 },
-  topNav: { paddingTop: 52, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.hairline, backgroundColor: colors.bgElevated },
+  navItemActive: { backgroundColor: '#FFFFFF' },
+  content: { flex: 1, minWidth: 0, minHeight: 0, overflow: 'hidden' },
+  topNav: { paddingTop: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.hairline, backgroundColor: colors.bgElevated },
   compactTitle: { paddingHorizontal: space.lg, marginBottom: space.md },
   tabs: { paddingHorizontal: space.md, gap: space.xs, paddingBottom: space.sm },
   navItemCompact: { paddingHorizontal: space.md },

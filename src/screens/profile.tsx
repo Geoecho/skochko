@@ -1,20 +1,18 @@
 import { useCallback, useState } from 'react';
 import { Image, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useRouter } from 'next/navigation';
-import { useOpenSettings } from '@/features/settings/SettingsDrawerContext';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useRequireAuth } from '@/features/auth/SignInSheet';
 import { supabase } from '@/lib/supabase';
 import { useUserStats } from '@/features/history/api';
-import { SideDrawer } from '@/ui/SideDrawer';
-import { Button, Glass, IconButton, Text } from '@/ui';
+import { SideDrawer, DrawerHeader } from '@/ui/SideDrawer';
+import { Button, Glass, Icon, Text } from '@/ui';
 import { colors, radius, space } from '@/theme/tokens';
 
 export default function ProfileScreen({ onDismiss }: { onDismiss?: () => void }) {
   const router = useRouter();
   const dismiss = useCallback(() => { if (onDismiss) onDismiss(); else router.replace('/'); }, [onDismiss, router]);
-  const openSettings = useOpenSettings();
   const { t } = useTranslation();
   const stats = useUserStats();
   const crawls = stats.data?.crawls_count ?? 0;
@@ -72,12 +70,9 @@ export default function ProfileScreen({ onDismiss }: { onDismiss?: () => void })
   const initials = (profile?.display_name || session?.user.email || '?').slice(0, 1).toUpperCase();
 
   return (
-    <SideDrawer label={t('profile.title')} onDismiss={dismiss}>
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Glass strong style={styles.header}>
-        <Text variant="title" weight="bold">{t('profile.title')}</Text>
-        <IconButton icon="close" label={t('common.close')} tone="plain" onPress={dismiss} />
-      </Glass>
+    <SideDrawer presentation="screen" side="left" label={t('profile.title')} onDismiss={dismiss}>{(closeDrawer) => (<>
+    <DrawerHeader back title={t('profile.title')} onClose={closeDrawer} />
+    <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 
       {!session ? (
         <Glass style={styles.card}>
@@ -125,39 +120,44 @@ export default function ProfileScreen({ onDismiss }: { onDismiss?: () => void })
           </View>
 
           <Glass style={styles.menu}>
-            <MenuItem label={t('profile.history')} onPress={() => router.push('/history')} />
-            <MenuItem label={t('profile.settings')} onPress={openSettings} />
-            {isAdmin && <MenuItem label={t('profile.admin')} onPress={() => router.push('/admin')} />}
-            <MenuItem label={t('profile.signOut')} danger onPress={() => signOut().then(dismiss)} />
+            <MenuItem icon="route" label={t('profile.history')} onPress={() => {closeDrawer();router.push('/history');}} />
+            {isAdmin && <MenuItem icon="shield" label={t('profile.admin')} onPress={() => {closeDrawer();router.push('/admin');}} />}
+            <MenuItem icon="arrowLeft" label={t('profile.signOut')} danger onPress={() => signOut().then(closeDrawer)} />
           </Glass>
         </>
       )}
     </ScrollView>
+    </>)}
     </SideDrawer>
   );
 }
 
-function MenuItem({ label, danger, onPress }: { label: string; danger?: boolean; onPress: () => void }) {
+function MenuItem({ label, icon, danger, onPress }: { label: string; icon: 'route'|'shield'|'arrowLeft'; danger?: boolean; onPress: () => void }) {
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={styles.menuItem}>
-      <Text weight="semibold" tone={danger ? 'danger' : 'primary'}>{label}</Text>
-      {!danger && <Text tone="tertiary">›</Text>}
+      <View style={styles.menuIcon}><Icon name={icon} size={19} color={colors.text} /></View>
+      <Text style={styles.menuLabel} weight="semibold" tone={danger ? 'danger' : 'primary'}>{label}</Text>
+      {!danger && <View style={styles.chevron}><Icon name="back" size={17} color={colors.textTertiary} /></View>}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { flexGrow: 1, gap: space.lg, padding: space.lg, paddingBottom: space.xxl, backgroundColor: colors.bgElevated },
+  scroll: { flex:1, minHeight:0 },
+  content: { flexGrow:1, width:'100%', maxWidth:680, alignSelf:'center', gap:space.lg, paddingHorizontal:space.xl, paddingTop:space.sm, paddingBottom:space.xxl },
+  menuLabel: { flex:1 },
+  menuIcon: { width:38, height:38, borderRadius:14, alignItems:'center', justifyContent:'center', backgroundColor:colors.bgElevated },
+  chevron: { transform:[{rotate:'180deg'}] },
   header: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md, backgroundColor: colors.bgElevated, borderWidth: 0 },
   back: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  card: { alignItems: 'center', gap: space.md, padding: space.xl },
+  card: { alignItems: 'center', gap: space.md, paddingVertical:space.xl, borderRadius:0, backgroundColor:'transparent' },
   avatar: { width: 96, height: 96, borderRadius: 48, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.hairline },
   avatarImage: { width: '100%', height: '100%' },
   name: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: space.sm },
   editRow: { alignSelf: 'stretch', flexDirection: 'row', gap: space.sm },
   input: { flex: 1, minHeight: 48, color: colors.text, borderWidth: 1, borderColor: colors.hairline, borderRadius: radius.card, paddingHorizontal: space.md, fontSize: 16 },
   stats: { flexDirection: 'row', gap: space.md },
-  stat: { flex: 1, minHeight: 104, gap: space.sm, padding: space.lg, justifyContent: 'center' },
-  menu: { overflow: 'hidden' },
-  menuItem: { minHeight: 56, paddingHorizontal: space.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.hairline },
+  stat: { backgroundColor:colors.bgElevated, flex: 1, minHeight: 104, gap: space.sm, padding: space.lg, justifyContent: 'center' },
+  menu: { overflow: 'hidden', borderRadius:0, backgroundColor:'transparent' },
+  menuItem: { minHeight: 70, paddingHorizontal: 0, gap:space.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.hairline },
 });

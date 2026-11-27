@@ -1,45 +1,45 @@
 // Design tokens. Single source of truth for colour, type, spacing, radius, motion.
-// Dark-first "liquid glass" theme, see WORKSHEET.md section 5.
+// Soft monochrome surfaces and high contrast controls.
 
 export const colors = {
-  bg: '#0B0B0F',
-  bgElevated: '#141419',
-  text: '#F5F5F7',
-  textSecondary: '#B2B1BE',
-  textTertiary: '#94919F',
+  bg: '#F1F2F3',
+  bgElevated: '#F4F4F5',
+  text: '#191919',
+  textSecondary: '#696969',
+  textTertiary: '#767676',
   // Periwinkle for text, icons and route lines on dark surfaces.
-  accent: '#B5ABFF',
-  accentPressed: '#9C8EF4',
+  accent: '#272727',
+  accentPressed: '#454545',
   // Deep violet for solid controls with white labels.
-  accentFill: '#5E4CB7',
-  accentFillPressed: '#4C399B',
+  accentFill: '#191919',
+  accentFillPressed: '#363636',
   onAccent: '#FFFFFF',
-  danger: '#FF6B81',
-  success: '#34D399',
-  hairline: 'rgba(255,255,255,0.09)',
+  danger: '#B5364A',
+  success: '#23754D',
+  hairline: 'rgba(25,25,25,0.10)',
   // Liquid glass: low-alpha tint + blur; the map shows through.
-  glass: 'rgba(60,60,74,0.30)',
-  glassStrong: 'rgba(52,52,66,0.42)',
+  glass: '#FFFFFF',
+  glassStrong: '#FFFFFF',
   // Bottom sheet: a bit denser so list text stays readable over busy map areas.
-  glassSheet: 'rgba(46,46,58,0.46)',
+  glassSheet: '#F1F2F3',
   // Fallback fills when the browser has no backdrop-filter (opaque enough to read, still lighter than the map).
-  glassNoBlur: 'rgba(44,44,56,0.9)',
-  glassSheetNoBlur: 'rgba(38,38,48,0.96)',
+  glassNoBlur: '#FFFFFF',
+  glassSheetNoBlur: '#F1F2F3',
   // Glass inside glass: no extra blur, just a light tint.
-  glassInner: 'rgba(255,255,255,0.06)',
-  glassInnerStrong: 'rgba(255,255,255,0.09)',
-  glassHighlight: 'rgba(255,255,255,0.05)',
-  glassRim: 'rgba(255,255,255,0.22)',
+  glassInner: '#FFFFFF',
+  glassInnerStrong: 'rgba(25,25,25,0.10)',
+  glassHighlight: '#FFFFFF',
+  glassRim: 'rgba(25,25,25,0.08)',
   scrim: 'rgba(0,0,0,0.45)',
   category: {
-    bar: '#FB7185',
-    pub: '#F5B83D',
-    cafe: '#C8A27A',
-    club: '#22D3EE',
-    rakija_bar: '#818CF8',
-    wine_bar: '#E879F9',
-    cocktail_bar: '#2DD4BF',
-    brewery: '#EAB308',
+    bar: '#F4E9D5',
+    pub: '#DEEDE4',
+    cafe: '#DEEDE4',
+    club: '#E9E3F2',
+    rakija_bar: '#F4E9D5',
+    wine_bar: '#E9E3F2',
+    cocktail_bar: '#E9E3F2',
+    brewery: '#DEEDE4',
   },
 } as const;
 
@@ -56,13 +56,13 @@ export const type = {
   body: { fontSize: 15, lineHeight: 22 },
   headline: { fontSize: 17, lineHeight: 24 },
   title: { fontSize: 24, lineHeight: 31 },
-  display: { fontSize: 30, lineHeight: 37 },
+  display: { fontSize: 32, lineHeight: 39 },
 } as const;
 
 // 4 pt grid
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 
-export const radius = { sm: 12, card: 18, sheet: 24, pill: 999 } as const;
+export const radius = { sm: 22, card: 28, sheet: 34, pill: 999 } as const;
 
 export const touch = { min: 44 } as const;
 

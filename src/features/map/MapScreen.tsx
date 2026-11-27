@@ -1,11 +1,13 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
+import { Keyboard, Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'next/navigation';
+import { useOpenSettings } from '@/features/settings/SettingsDrawerContext';
 import { useOpenProfile } from '@/features/settings/ProfileDrawerContext';
-import { useRequireAuth } from '@/features/auth/SignInSheet';
 import { useRouteBuilder } from '@/state/routeBuilder';
 import type { NearbyVenue } from '@/types/domain';
 import { MapView } from './MapView';
+import { FeaturedBanner } from './FeaturedBanner';
 import { useUserLocation } from './useUserLocation';
 import { distanceMeters, useNearbyVenues, type VenueFilters } from '@/features/venues/api';
 import { useTonightEvents } from '@/features/events/api';
@@ -19,22 +21,36 @@ import { useDirections } from '@/features/route/directions';
 
 export function MapScreen() {
   const router = useRouter();
-  const { requireAuth } = useRequireAuth();
   const openProfile = useOpenProfile();
+  const openSettings = useOpenSettings();
   const { width } = useWindowDimensions();
   const splitLayout = Platform.OS === 'web' && width >= 768;
   const desktop = splitLayout && width >= 1200;
   const panelWidth = desktop ? Math.min(600, Math.round(width * 0.38)) : 340;
   const location = useUserLocation();
+  const [searchActive, setSearchActive] = useState(false);
   const [filters, setFilters] = useState<VenueFilters>({});
   const [selectedVenue, setSelectedVenue] = useState<NearbyVenue | null>(null);
   const [favouritesOpen, setFavouritesOpen] = useState(false);
   const [routeBuilderOpen, setRouteBuilderOpen] = useState(false);
   const [sheetHeight, setSheetHeight] = useState(PEEK_BASE);
-  const [sheetSnap, setSheetSnap] = useState<SheetSnap>('peek');
   const sheetRef = useRef<BottomSheetHandle>(null);
   const homeRef = useRef<HomeSheetHandle>(null);
-  const pendingSearch = useRef(false);
+  const favouritesCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (favouritesCloseTimer.current) clearTimeout(favouritesCloseTimer.current);
+  }, []);
+  const closeFavourites = useCallback(() => {
+    Keyboard.dismiss();
+    setSearchActive(false);
+    sheetRef.current?.snapTo('peek');
+    if (favouritesCloseTimer.current) clearTimeout(favouritesCloseTimer.current);
+    // Retain the favourites content until the closing motion finishes.
+    favouritesCloseTimer.current = setTimeout(() => {
+      setFavouritesOpen(false);
+      favouritesCloseTimer.current = null;
+    }, 350);
+  }, []);
   const venuesQuery = useNearbyVenues(location.location, filters);
   const eventsQuery = useTonightEvents();
   const stops = useRouteBuilder((state) => state.stops);
@@ -46,6 +62,8 @@ export function MapScreen() {
     : undefined;
 
   const showVenue = useCallback((venue: NearbyVenue) => {
+    Keyboard.dismiss();
+    setSearchActive(false);
     setRouteBuilderOpen(false);
     setSelectedVenue(venue);
     sheetRef.current?.snapTo('half');
@@ -53,6 +71,8 @@ export function MapScreen() {
 
   const showCTA = routeStopsCount > 0;
   const showRouteBuilder = () => {
+    Keyboard.dismiss();
+    setSearchActive(false);
     setSelectedVenue(null);
     setRouteBuilderOpen(true);
     setFavouritesOpen(false);
@@ -68,19 +88,16 @@ export function MapScreen() {
     sheetRef.current?.snapTo('full');
   };
   const openSearch = () => {
-    if (homeRef.current && (splitLayout || sheetSnap !== 'peek')) {
-      homeRef.current.focusSearch();
-      return;
-    }
-    pendingSearch.current = true;
-    showBrowse();
-    sheetRef.current?.snapTo('half');
+    // Safari only opens its keyboard when focus stays inside the original tap.
+    // Commit the visible, non-inert input before focusing it in this same event.
+    flushSync(() => {
+      showBrowse();
+      setSearchActive(true);
+      sheetRef.current?.snapTo('full');
+    });
+    sheetRef.current?.scrollToTop();
+    homeRef.current?.focusSearch();
   };
-  useLayoutEffect(() => {
-    if (!pendingSearch.current || !homeRef.current || (!splitLayout && sheetSnap === 'peek')) return;
-    pendingSearch.current = false;
-    homeRef.current.focusSearch();
-  }, [favouritesOpen, routeBuilderOpen, selectedVenue, sheetSnap, splitLayout]);
   // Street-following preview from you (if located) through every stop.
   // The user position is snapped to ~10 m so GPS jitter doesn't refetch directions.
   const userLat = location.userLocation ? Number(location.userLocation.lat.toFixed(4)) : null;
@@ -103,7 +120,7 @@ export function MapScreen() {
     : undefined, [stops]);
 
   const updateSheetHeight = useCallback((snap: SheetSnap, visibleHeight: number) => {
-    setSheetSnap(snap);
+    if (snap === 'peek') setSearchActive(false);
     setSheetHeight(visibleHeight);
   }, []);
 
@@ -115,15 +132,26 @@ export function MapScreen() {
           location={location.location}
           locationIssue={location.issue}
           onLocate={location.locate}
-          onProfilePress={() => requireAuth('account', openProfile)}
+          onProfilePress={() => { Keyboard.dismiss(); openProfile(); }}
+          onSettingsPress={() => { Keyboard.dismiss(); openSettings(); }}
           onSearchPress={openSearch}
           onFavouritesPress={() => {
+            if (favouritesOpen && !selectedVenue && !routeBuilderOpen && !favouritesCloseTimer.current) {
+              closeFavourites();
+              return;
+            }
+            if (favouritesCloseTimer.current) {
+              clearTimeout(favouritesCloseTimer.current);
+              favouritesCloseTimer.current = null;
+            }
+            Keyboard.dismiss();
+            setSearchActive(false);
             setSelectedVenue(null);
             setRouteBuilderOpen(false);
             setFavouritesOpen(true);
             sheetRef.current?.snapTo('half');
           }}
-          onMapTap={() => sheetRef.current?.snapTo('peek')}
+          onMapTap={() => { if (favouritesOpen) closeFavourites(); else { setSearchActive(false); sheetRef.current?.snapTo('peek'); } }}
           onSelectVenue={showVenue}
           routeLine={routeLine}
           fitRoute={routeBuilderOpen}
@@ -133,6 +161,7 @@ export function MapScreen() {
           userLocation={location.userLocation}
           venues={venues}
         />
+        {!searchActive && <FeaturedBanner venues={venues} origin={location.location} onSelect={showVenue} />}
       </View>
 
       <View pointerEvents={splitLayout ? 'auto' : 'box-none'} style={[styles.browser, splitLayout && { right: undefined, width: panelWidth }]}>
@@ -140,8 +169,10 @@ export function MapScreen() {
           ref={sheetRef}
           docked={splitLayout}
           onBrowsePress={showBrowse}
+          onSearchPress={openSearch}
+          scrollable={!searchActive}
           onSnapChange={updateSheetHeight}
-          footerInset={showCTA ? CTA_INSET : 0}
+          footerInset={showCTA && !searchActive ? CTA_INSET : 0}
           contentKey={routeBuilderOpen ? 'route-builder' : selectedVenue?.id ?? (favouritesOpen ? 'favourites' : 'browse')}
           footer={selectedVenue ? <VenueActions venue={selectedVenue} onViewRoute={showRouteBuilder} onAddAnother={browseStops} /> : undefined}
         >
@@ -159,13 +190,16 @@ export function MapScreen() {
             />
           ) : favouritesOpen ? (
             <FavouritesSheet
-              onClose={() => setFavouritesOpen(false)}
+              onClose={closeFavourites}
               onSelect={venue => showVenue(venues.find(item => item.id === venue.id) ?? { ...venue, distance_m: distanceMeters(location.location, venue) })}
             />
           ) : (
             <HomeSheet
               ref={homeRef}
               desktop={desktop}
+              searchActive={searchActive}
+              onSearchActiveChange={setSearchActive}
+              onNearMe={() => { if (!location.userLocation) location.locate(); }}
               events={events}
               eventsError={eventsQuery.isError}
               eventsLoading={eventsQuery.isLoading}
@@ -174,7 +208,10 @@ export function MapScreen() {
               onRetryEvents={() => void eventsQuery.refetch()}
               onRetryVenues={() => void venuesQuery.refetch()}
               onVenuePress={showVenue}
-              onExpand={(snap) => sheetRef.current?.snapTo(snap)}
+              onExpand={(snap) => {
+                sheetRef.current?.snapTo(snap);
+                if (snap === 'full') sheetRef.current?.scrollToTop();
+              }}
               origin={location.location}
               venues={venues}
               venuesError={venuesQuery.isError}
@@ -183,7 +220,7 @@ export function MapScreen() {
           )}
         </BottomSheet>
 
-        {showCTA ? (
+        {showCTA && !searchActive ? (
           <RouteCTA
             count={routeStopsCount}
             onStart={() => router.push('/crawl')}

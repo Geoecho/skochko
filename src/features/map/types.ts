@@ -21,6 +21,7 @@ export type MapViewProps = {
   onLocate: () => void;
   onSelectVenue: (venue: NearbyVenue) => void;
   onProfilePress?: () => void;
+  onSettingsPress?: () => void;
   onFavouritesPress?: () => void;
   onSearchPress?: () => void;
   onMapTap?: () => void;

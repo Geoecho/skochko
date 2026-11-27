@@ -103,7 +103,8 @@
       "opensAt": "Opens at {{time}}",
       "walkTime": "{{minutes}} min walk",
       "distance": "{{distance}} away"
-    }
+    },
+    "featuredTitle": "A local favourite"
   },
   "sheet": {
     "clearSearch": "Clear search",
@@ -132,7 +133,10 @@
       "rakija": "Rakija bars",
       "clubs": "Clubs",
       "cafes": "Cafés"
-    }
+    },
+    "nearMe": "Near me",
+    "topRated": "Top rated",
+    "affordable": "Affordable"
   },
   "tonight": {
     "endsAt": "Until {{time}}",
@@ -182,7 +186,13 @@
     "reviews_other": "{{count}} reviews",
     "rateVenue": "Rate venue",
     "yourRating": "Your rating",
-    "distance": "Distance"
+    "distance": "Distance",
+    "photoCredit": "Photo on Google Maps",
+    "photos": "Place photos",
+    "photoNumber": "{{name}}, photo {{number}}",
+    "previousPhoto": "Previous photo",
+    "nextPhoto": "Next photo",
+    "goToPhoto": "Go to photo {{number}}"
   },
   "route": {
     "viewRouteCount": "View route ({{count}})",
@@ -231,7 +241,8 @@
     "startCrawlCount_one": "Start crawl · {{count}} stop",
     "startCrawlCount_other": "Start crawl · {{count}} stops",
     "edit": "Edit",
-    "minStopsOne": "Add at least one stop"
+    "minStopsOne": "Add at least one stop",
+    "closedPlaceHint": "This place is closed right now. Try again when it opens."
   },
   "crawl": {
     "modeTitle": "Bar Crawl",
@@ -356,7 +367,13 @@
     "shortPassword": "Use at least 6 characters.",
     "invalidCredentials": "That email and password don’t match. Try again or use an email link.",
     "connectionError": "Check your connection and try again.",
-    "emailSentDetail": "We sent a sign-in link to {{email}}. Check spam if you don’t see it."
+    "emailSentDetail": "We sent a sign-in link to {{email}}. Check spam if you don’t see it.",
+    "yourSpace": "Your space",
+    "welcomeBack": "Nice to\nsee you.",
+    "welcomeNew": "Make yourself\nat home.",
+    "createAccountTab": "Create account",
+    "showPassword": "Show",
+    "hidePassword": "Hide"
   },
   "ageGate": {
     "title": "Welcome to Skochko",
@@ -377,13 +394,16 @@
   "admin": {
     "title": "Skochko Admin",
     "nav": {
-    "expandSheet": "Expand panel",
-    "expandSheet": "Expand panel",
-    "shrinkSheet": "Minimize panel",
+      "expandSheet": "Expand panel",
+      "shrinkSheet": "Minimize panel",
       "venues": "Venues",
       "events": "Events",
       "promotions": "Promotions",
-      "moderation": "Moderation"
+      "moderation": "Moderation",
+      "overview": "Overview",
+      "accounts": "Accounts",
+      "system": "Diagnostics",
+      "settings": "Settings"
     },
     "venuesList": {
       "createVenue": "Add venue",
@@ -497,7 +517,91 @@
     "confirmDeleteEvent": "Delete {{title}} permanently?",
     "confirmModeration": "Update moderation for {{title}}?",
     "confirmHideRoute": "Hide {{title}} from the public community?",
-    "confirmResolveReport": "Resolve this report?"
+    "confirmResolveReport": "Resolve this report?",
+    "control": {
+      "workspace": "Control center",
+      "overviewSubtitle": "A clear view of your places, accounts, and recorded activity.",
+      "newThisWeek": "{{count}} joined this week",
+      "last7Days": "Last 7 days",
+      "completedCount": "{{count}} completed",
+      "publicCount": "{{count}} public",
+      "totalCount": "{{count}} total",
+      "upcoming": "Live and upcoming",
+      "savedPlaces": "Saved places",
+      "awaitingReview": "Awaiting review",
+      "users": "Accounts",
+      "activeUsers": "Active accounts",
+      "sessions": "Route sessions",
+      "routes": "Saved routes",
+      "venues": "Active places",
+      "events": "Events",
+      "favourites": "Favourites",
+      "reports": "Open reports",
+      "export": "Export CSV",
+      "refresh": "Refresh",
+      "activity": "Activity",
+      "last14Days": "Last 14 days · Skopje time",
+      "metric": "Activity metric",
+      "activityDescription": "{{count}} recorded activities over the last 14 days",
+      "trackingNote": "Counts come from saved account activity. Anonymous visitors and unsaved guest routes are not tracked.",
+      "contentHealth": "Content health",
+      "photos": "Places with photos",
+      "ratings": "Places with ratings",
+      "hours": "Places with opening hours",
+      "staleGoogle": "Google records older than 21 days or missing a refresh date",
+      "errors7Days": "Client errors in the last 7 days",
+      "popular": "Most saved places",
+      "noActivity": "No recorded activity yet.",
+      "loadError": "This section could not be loaded. Try again.",
+      "access": "Account access",
+      "accountsSubtitle": "Manage account access. Your own administrator role is protected.",
+      "searchAccounts": "Search by name or account ID",
+      "role": "Role",
+      "allRoles": "All roles",
+      "member": "Member",
+      "administrator": "Administrator",
+      "account": "Account",
+      "joined": "Joined",
+      "actions": "Actions",
+      "unnamed": "Unnamed account",
+      "you": "You",
+      "changeRole": "Change account role",
+      "roleConfirm": "Change access for {{name}}?",
+      "makeMember": "Make member",
+      "makeAdmin": "Make administrator",
+      "noAccounts": "No accounts match this search.",
+      "roleNote": "Only administrators can change roles. You cannot change your own role or remove the last administrator.",
+      "monitoring": "Monitoring",
+      "systemSubtitle": "Inspect recent client errors and the administrative change log.",
+      "errors": "Client errors",
+      "audit": "Audit log",
+      "action": "Action",
+      "target": "Target",
+      "when": "When",
+      "noErrors": "No recent client errors.",
+      "noAudit": "No administrative changes recorded yet.",
+      "monitoringNote": "The latest 100 records are shown. Diagnostic messages are excluded from the error list.",
+      "configuration": "Configuration",
+      "settingsSubtitle": "Manage the featured banner and your admin account security.",
+      "passwordLength": "Use at least 12 characters.",
+      "passwordUpdated": "Password updated.",
+      "security": "Account security",
+      "passwordHelp": "Set a new strong password for the account you are signed in with.",
+      "newPassword": "New password",
+      "updatePassword": "Update password",
+      "featuredBanner": "Featured banner",
+      "showBanner": "Show the featured banner",
+      "featuredPlace": "Featured place",
+      "automatic": "Automatic selection",
+      "titleMk": "Macedonian heading",
+      "titleEn": "English heading",
+      "backToMap": "Back to map",
+      "adminSignIn": "Administration.",
+      "adminLoginSubtitle": "Sign in with your dedicated administrator account.",
+      "switchAccount": "This account does not have admin access. Sign out to use your admin account.",
+      "username": "Admin username or email",
+      "loginError": "Unable to sign in. Check your administrator credentials."
+    }
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
@@ -599,5 +703,55 @@
     "recenter": "Center on me",
     "browse": "Browse places and build routes",
     "showMap": "Show map"
+  },
+  "intro": {
+    "label": "A little hello.",
+    "skip": "Skip",
+    "next": "Next",
+    "start": "Explore",
+    "steps": "Introduction steps",
+    "progress": "{{current}} of {{total}}",
+    "title0": "Good places.\nGreat little plans.",
+    "body0": "Find somewhere new, check opening hours, and take a closer look before you go.",
+    "title1": "A few stops.\nYour kind of day.",
+    "body1": "Build a walking route, choose how long to stay, and add another stop whenever you’re ready.",
+    "title2": "Found a favourite?\nKeep it close.",
+    "body2": "Tap the heart to save a place. Sign in when you want to keep your favourites and routes together.",
+    "footnote": "Explore first. Make an account whenever you’re ready.",
+    "replay": "Take the quick tour",
+    "replayDescription": "A friendly introduction to places, routes, and favourites."
+  },
+  "settings": {
+    "privacyPolicy": "Privacy policy",
+    "locationAccess": "Location access"
+  },
+  "food": {
+    "eyebrow": "Something to eat",
+    "title": "A bite nearby.",
+    "subtitle": "Food and bakeries within 3 km. A little easier to find.",
+    "open": "Open now",
+    "late": "Late hours",
+    "all": "All nearby",
+    "error": "Nearby food is taking a moment.",
+    "retry": "Try again",
+    "noOpen": "No confirmed open places nearby. Try All nearby to check their hours.",
+    "noResults": "No places found for this option nearby.",
+    "food": "Food",
+    "bakery": "Bakery",
+    "status": {
+      "open": "Open now",
+      "closed": "Closed now",
+      "unknown": "Hours unconfirmed"
+    },
+    "hours": "Opening hours",
+    "directions": "Walking directions to {{name}}",
+    "more": "Show more",
+    "less": "Show less",
+    "verify": "Check with the place before heading out.",
+    "category": "Food",
+    "go": "Directions",
+    "around": "Within {{distance}} km",
+    "results_one": "{{count}} place",
+    "results_other": "{{count}} places"
   }
 }

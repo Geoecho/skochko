@@ -33,7 +33,8 @@ export function useGoogleVenueDetails(venueId: string, venueName: string) {
         if (!review || typeof review.id !== 'string' || typeof review.author !== 'string' || typeof review.text !== 'string') return [];
         return [{ id: review.id, author: review.author, text: review.text, rating: positiveNumber(review.rating), url: httpsUrl(review.url) }];
       }) : [];
-      return { rating: positiveNumber(details?.rating), count: positiveNumber(details?.count), url: httpsUrl(details?.url) ?? fallbackUrl, reviews };
+      const photoAuthors = Array.isArray(details?.photos) ? details.photos.flatMap(p => { const photo = object(p); return Array.isArray(photo?.authors) ? photo.authors.flatMap(a => { const author = object(a); return typeof author?.displayName === 'string' ? [{ name: author.displayName, url: httpsUrl(author.uri) }] : []; }) : []; }) : [];
+      return { photoAuthors, rating: positiveNumber(details?.rating), count: positiveNumber(details?.count), url: httpsUrl(details?.url) ?? fallbackUrl, reviews };
     },
   });
 }

@@ -31,14 +31,27 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem('skochko.locale').then((locale) => {
-      if (locale === 'mk' || locale === 'en') i18n.changeLanguage(locale);
-    });
+    const syncDocumentLanguage = (language: string) => {
+      document.documentElement.lang = language === 'en' ? 'en' : 'mk';
+    };
+    syncDocumentLanguage(i18n.language);
+    i18n.on('languageChanged', syncDocumentLanguage);
+    let active = true;
+    void AsyncStorage.getItem('skochko.locale').then((locale) => {
+      if (!active) return;
+      const preferred = locale === 'mk' || locale === 'en' ? locale
+        : navigator.language.split('-')[0] === 'en' ? 'en' : 'mk';
+      return i18n.changeLanguage(preferred);
+    }).catch(() => { /* Keep the deterministic default if storage is unavailable. */ });
     const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession);
       if (event === 'INITIAL_SESSION') setReady(true);
     });
-    return () => data.subscription.unsubscribe();
+    return () => {
+      active = false;
+      i18n.off('languageChanged', syncDocumentLanguage);
+      data.subscription.unsubscribe();
+    };
   }, []);
 
   const userId = session?.user.id;

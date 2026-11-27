@@ -2,6 +2,7 @@ import '@/i18n';
 import { useCallback, useEffect, useState, type PropsWithChildren } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { WelcomeIntro } from '@/features/auth/WelcomeIntro';
 import { AgeGate } from '@/features/auth/AgeGate';
 import { AuthProvider } from '@/features/auth/AuthProvider';
 import { installGlobalErrorHandlers, reportDeviceOnce } from '@/lib/errorReporting';
@@ -15,6 +16,8 @@ import { ProfileDrawerContext } from '@/features/settings/ProfileDrawerContext';
 
 export default function WebProviders({ children }: PropsWithChildren) {
   const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [introReady, setIntroReady] = useState(false);
+  const finishIntro = useCallback(() => setIntroReady(true), []);
   const [profileOpen, setProfileOpen] = useState(false);
   const openProfile = useCallback(() => setProfileOpen(true), []);
   const closeProfile = useCallback(() => setProfileOpen(false), []);
@@ -39,7 +42,7 @@ export default function WebProviders({ children }: PropsWithChildren) {
         <ProfileDrawerContext.Provider value={openProfile}>
         <SettingsDrawerContext.Provider value={openSettings}>
           <AuthProvider>
-            <UserLocationProvider ageConfirmed={ageConfirmed}>
+            <UserLocationProvider ageConfirmed={ageConfirmed && introReady}>
               <ConfirmationProvider>
                 {children}
                 {profileOpen && <ProfileScreen onDismiss={closeProfile} />}
@@ -47,6 +50,7 @@ export default function WebProviders({ children }: PropsWithChildren) {
               </ConfirmationProvider>
             </UserLocationProvider>
             <AgeGate onConfirmed={confirmAge} />
+            <WelcomeIntro enabled={ageConfirmed} onReady={finishIntro} />
           </AuthProvider>
         </SettingsDrawerContext.Provider>
         </ProfileDrawerContext.Provider>

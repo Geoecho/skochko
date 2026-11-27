@@ -78,6 +78,7 @@ export function MapView({
   onLocate,
   onSelectVenue,
   onProfilePress,
+  onSettingsPress,
   onFavouritesPress,
   onSearchPress,
   onMapTap,
@@ -123,7 +124,7 @@ export function MapView({
     try {
       map = new MapLibreMap({
         container: containerRef.current,
-        style: '/map/skochko-dark.json',
+        style: '/map/skochko-light.json',
         center: [location.lng, location.lat],
         zoom: 15,
         pitch: 0,
@@ -131,7 +132,8 @@ export function MapView({
         dragRotate: false,
         pitchWithRotate: false,
         attributionControl: false,
-        pixelRatio: Math.min(window.devicePixelRatio || 1, window.matchMedia('(pointer: coarse)').matches ? 1.5 : 2),
+        pixelRatio: Math.min(window.devicePixelRatio || 1, 3),
+        canvasContextAttributes: { antialias: true },
         fadeDuration: 0,
       });
     } catch (error) {
@@ -224,33 +226,30 @@ export function MapView({
         source: FEATURED_SOURCE,
         minzoom: 15,
         paint: {
-          'circle-radius': 17,
+          'circle-radius': 25,
           'circle-opacity': 0,
           'circle-stroke-color': colors.accent,
-          'circle-stroke-width': 2,
+          'circle-stroke-width': 2.2,
           'circle-stroke-opacity': 0,
-          'circle-translate': [0, -22],
+          'circle-translate': [0, -30],
           'circle-translate-anchor': 'viewport',
           'circle-radius-transition': { duration: 0 },
           'circle-stroke-opacity-transition': { duration: 0 },
         },
       });
       addPinImages(map);
-      // Teardrop location pins; the tip sits exactly on the venue coordinate.
+      // Fixed-size monochrome badges; selection changes contrast, never scale.
       map.addLayer({
         id: PIN_LAYER,
         type: 'symbol',
         source: VENUE_SOURCE,
         filter: ['!', ['has', 'point_count']],
         layout: {
-          'icon-image': [
-            'case',
-            ['==', ['get', 'is_promoted'], true],
-            ['concat', 'pin-', ['get', 'category'], '-promo'],
-            ['concat', 'pin-', ['get', 'category']],
-          ],
+          'icon-image': ['concat','pin-',['get','category'],
+            ['case',['==',['get','is_promoted'],true],'-promo',''],
+            ['case',['==',['get','is_selected'],true],'-selected','']],
           'icon-anchor': 'bottom',
-          'icon-size': ['case', ['==', ['get', 'is_selected'], true], 1.3, 0.92],
+          'icon-size': 1,
           'icon-allow-overlap': true,
           'icon-ignore-placement': true,
           // Selected and promoted pins draw on top.
@@ -326,10 +325,10 @@ export function MapView({
     const tick = (time: number) => {
       if (time - lastUpdate >= 40) {
         lastUpdate = time;
-        const phase = ((time - start) % 3200) / 1650;
+        const phase = ((time - start) % 2800) / 2200;
         const progress = Math.min(1, phase);
-        map.setPaintProperty(ripple, 'circle-radius', 18 + 15 * (1 - (1 - progress) ** 2));
-        map.setPaintProperty(ripple, 'circle-stroke-opacity', 0.8 * Math.min(1, progress * 9) * (1 - progress) ** 2);
+        map.setPaintProperty(ripple, 'circle-radius', 25 + 23 * (1 - (1 - progress) ** 2));
+        map.setPaintProperty(ripple, 'circle-stroke-opacity', 0.78 * Math.min(1, progress * 10) * (1 - progress));
       }
       frame = requestAnimationFrame(tick);
     };
@@ -404,6 +403,7 @@ export function MapView({
   const selectedLng = selectedVenue?.lng;
   const selectedLat = selectedVenue?.lat;
   const sheetHeightRef = useRef(sheetHeight);
+  // eslint-disable-next-line react-hooks/immutability -- Commit-time ref update avoids recentering the map during sheet animation.
   useLayoutEffect(() => { sheetHeightRef.current = sheetHeight; }, [sheetHeight]);
 
   useEffect(() => {
@@ -461,9 +461,12 @@ export function MapView({
         />
       ) : null}
 
-      {onProfilePress && onFavouritesPress && onSearchPress ? (
-        <TopBar onProfilePress={onProfilePress} onFavouritesPress={onFavouritesPress} onSearchPress={onSearchPress} />
+      {onProfilePress && onFavouritesPress && onSettingsPress ? (
+        <TopBar onProfilePress={onProfilePress} onFavouritesPress={onFavouritesPress} onSettingsPress={onSettingsPress} />
       ) : null}
+
+      <div className="map-edge-blur map-edge-blur-top" aria-hidden="true" />
+      <div className="map-edge-blur map-edge-blur-bottom" aria-hidden="true" />
 
       {/* Hidden when the sheet covers most of the map: it would float over the sheet's edge. */}
       {mapReady && !mapFailed && !contextLost && sheetHeight < windowHeight * 0.7 ? (

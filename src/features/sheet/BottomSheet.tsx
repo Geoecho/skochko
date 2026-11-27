@@ -1,18 +1,21 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type PointerEvent, type ReactNode } from 'react';
-import { Keyboard, Pressable, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
+import { Keyboard, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Icon, Text, type IconHandle } from '@/ui';
 import { colors, radius, space } from '@/theme/tokens';
 import { GlassSurfaceProvider } from '@/ui/Glass';
 import { useReducedMotion } from '@/lib/use-reduced-motion';
+import { useVisualViewport } from '@/lib/use-visual-viewport';
 
 export type SheetSnap = 'peek' | 'half' | 'full';
-export type BottomSheetHandle = { snapTo: (snap: SheetSnap) => void };
+export type BottomSheetHandle = { snapTo: (snap: SheetSnap) => void; scrollToTop: () => void };
 
 type Props = {
   children: ReactNode;
+  scrollable?: boolean;
   onBrowsePress?: () => void;
+  onSearchPress?: () => void;
   onSnapChange?: (snap: SheetSnap, visibleHeight: number) => void;
   footerInset?: number;
   docked?: boolean;
@@ -20,14 +23,16 @@ type Props = {
   contentKey?: string;
 };
 
-export const PEEK_BASE = 52 + space.lg * 2;
+export const PEEK_BASE = 54 + 52 + space.md + space.lg * 2;
 
 export const BottomSheet = forwardRef<BottomSheetHandle, Props>(function BottomSheet(
-  { children, onBrowsePress, onSnapChange, footerInset = 0, docked = false, footer, contentKey },
+  { children, onBrowsePress, onSearchPress, onSnapChange, footerInset = 0, docked = false, footer, contentKey, scrollable = true },
   ref,
 ) {
   const { t } = useTranslation();
-  const { height } = useWindowDimensions();
+  const { height: layoutHeight } = useWindowDimensions();
+  const viewport = useVisualViewport();
+  const height = viewport.height || layoutHeight;
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
   const [snap, setSnap] = useState<SheetSnap>('peek');
@@ -35,7 +40,8 @@ export const BottomSheet = forwardRef<BottomSheetHandle, Props>(function BottomS
   const drag = useRef<{ id: number; y: number; top: number; moved: boolean } | null>(null);
   const ignoreClickUntil = useRef(0);
   const icon = useRef<IconHandle>(null);
-  const full = Math.max(height * 0.13, insets.top + space.sm);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const full = viewport.keyboardOpen ? space.sm : Math.max(height * 0.13, insets.top + space.sm);
   const peek = Math.max(full, height - PEEK_BASE - insets.bottom - footerInset);
   const half = Math.max(full, Math.min(height * 0.38, peek));
   const positions = { full, half, peek };
@@ -46,12 +52,13 @@ export const BottomSheet = forwardRef<BottomSheetHandle, Props>(function BottomS
     if (next === 'peek') Keyboard.dismiss();
     setSnap(next);
   }, [docked]);
-  useImperativeHandle(ref, () => ({ snapTo }), [snapTo]);
-  const visibleHeight = docked ? 0 : Math.max(0, height - positions[snap]);
+  useImperativeHandle(ref, () => ({ snapTo, scrollToTop: () => scrollRef.current?.scrollTo({ top: 0, behavior: 'instant' }) }), [snapTo]);
+
+  const visibleHeight = docked ? 0 : Math.max(0, layoutHeight - (viewport.offsetTop + positions[snap]));
   useEffect(() => onSnapChange?.(snap, visibleHeight), [onSnapChange, snap, visibleHeight]);
 
   const startDrag = (event: PointerEvent<HTMLDivElement>) => {
-    if (!event.isPrimary || event.button !== 0 || (event.target as HTMLElement).closest('.sheet-collapse')) return;
+    if (!event.isPrimary || event.button !== 0 || (event.target as HTMLElement).closest('.sheet-collapse, .sheet-search-launch')) return;
     ignoreClickUntil.current = 0;
     drag.current = { id: event.pointerId, y: event.clientY, top: positions[snap], moved: false };
     (event.target as Element).setPointerCapture(event.pointerId);
@@ -79,27 +86,36 @@ export const BottomSheet = forwardRef<BottomSheetHandle, Props>(function BottomS
     else snapTo(snap === 'full' && releaseTop < (half + peek) / 2 ? 'half' : 'peek');
   };
 
+  // Keep this DOM container mounted when search starts so Safari retains input focus.
   const scrollContent = (
-    <ScrollView
-      key={contentKey}
-      contentContainerStyle={{ paddingTop: docked ? space.lg : 0, paddingBottom: space.lg + (footer ? 0 : insets.bottom + footerInset) }}
-      keyboardShouldPersistTaps="handled"
-      style={[styles.scroll, browserScroll]}
-    >
+    <div ref={scrollRef} key={contentKey} style={{
+      flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column',
+      boxSizing: 'border-box',
+      overflowY: scrollable ? 'auto' : 'hidden',
+      overscrollBehaviorY: 'contain',
+      scrollbarWidth: 'thin', scrollbarColor: '#c7c7c9 transparent',
+      paddingTop: docked && scrollable ? space.lg : 0,
+      paddingBottom: scrollable ? space.lg + (footer ? 0 : insets.bottom + footerInset) : 0,
+    }}>
       <GlassSurfaceProvider>{children}</GlassSurfaceProvider>
-    </ScrollView>
+    </div>
   );
 
   if (docked) {
-    return <div style={dockedStyle}>{scrollContent}{footer ? <div style={{ paddingBottom: footerInset, flexShrink: 0 }}>{footer}</div> : null}</div>;
+    return <div style={{ ...dockedStyle, height: height + viewport.keyboardInset, boxSizing: 'border-box', paddingBottom: viewport.keyboardInset }}>{scrollContent}{footer ? <div style={{ paddingBottom: footerInset, flexShrink: 0 }}>{footer}</div> : null}</div>;
   }
 
   return (
-    <section style={{
+    <section className={['place-sheet',viewport.keyboardOpen&&'keyboard-open',collapsed&&'is-collapsed'].filter(Boolean).join(' ')} style={{
       ...sheetStyle,
-      bottom: 0,
-      height: Math.max(0, height - (dragTop ?? positions[snap])),
-      transition: reduceMotion || dragTop !== null ? undefined : 'height 340ms cubic-bezier(0.22, 1, 0.36, 1)',
+      position: 'fixed',
+      background: collapsed ? 'transparent' : colors.bgElevated,
+      borderRadius: collapsed ? 0 : sheetStyle.borderRadius,
+      boxSizing: 'border-box',
+      paddingBottom: viewport.keyboardInset,
+      top: viewport.offsetTop + (dragTop ?? positions[snap]),
+      height: Math.max(0, height - (dragTop ?? positions[snap])) + viewport.keyboardInset,
+      transition: reduceMotion || dragTop !== null || viewport.keyboardOpen ? undefined : 'height 340ms cubic-bezier(0.22, 1, 0.36, 1), top 340ms cubic-bezier(0.22, 1, 0.36, 1)',
     }}>
       <div
         style={collapsed ? sheetHeader : expandedHeader}
@@ -109,13 +125,15 @@ export const BottomSheet = forwardRef<BottomSheetHandle, Props>(function BottomS
         onPointerCancel={finishDrag}
         onLostPointerCapture={finishDrag}
       >
-        {collapsed ? <Pressable
+        {collapsed ? <div className="sheet-peek-actions">
+          {onSearchPress && <button type="button" className="sheet-search-launch" onClick={onSearchPress}><Icon name="search" size={20} /><span>{t('common.searchPlaceholder')}</span></button>}
+          <Pressable
           accessibilityRole="button"
           accessibilityState={{ expanded: !collapsed }}
           onPress={() => {
             if (Date.now() < ignoreClickUntil.current) return;
             icon.current?.play();
-            onBrowsePress?.();
+            if (contentKey !== 'favourites') onBrowsePress?.();
             snapTo('half');
           }}
           style={({ pressed }) => [
@@ -125,9 +143,9 @@ export const BottomSheet = forwardRef<BottomSheetHandle, Props>(function BottomS
             pressed && !reduceMotion && styles.pressed,
           ]}
         >
-          <Icon ref={icon} name="compass" size={20} color={colors.onAccent} />
-          <Text variant="headline" weight="semibold" tone="onAccent">{t('nav.browse')}</Text>
-        </Pressable> : (<>
+          <Icon ref={icon} name={contentKey === 'favourites' ? 'heart' : 'compass'} size={20} color={colors.onAccent} />
+          <Text variant="headline" weight="semibold" tone="onAccent">{t(contentKey === 'favourites' ? 'map.favourites' : 'nav.browse')}</Text>
+        </Pressable></div> : (<>
           <button
             type="button"
             className="sheet-grip"
@@ -159,8 +177,6 @@ const sheetHeader = { padding: space.lg, touchAction: 'none', userSelect: 'none'
 const expandedHeader = { position: 'relative', minHeight: 44, flexShrink: 0, touchAction: 'none', userSelect: 'none' } as const;
 const dockedStyle = { height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: colors.bgElevated, borderRight: '1px solid rgba(255,255,255,0.10)' } as const;
 const buttonTransition = { transition: 'transform 150ms ease-out, background-color 150ms ease-out' } as object;
-const browserScroll = { scrollbarWidth: 'thin', scrollbarColor: '#73737e #212126', scrollbarGutter: 'stable', overscrollBehaviorY: 'contain' } as object;
-
 const styles = StyleSheet.create({
   scroll: { flex: 1, minHeight: 0 },
   button: {

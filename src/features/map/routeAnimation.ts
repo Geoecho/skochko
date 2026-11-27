@@ -1,4 +1,4 @@
-// Route line rendering: glow + main line drawn in progressively, a muted "rest of the route" line,
+// Crisp cased route line drawn in progressively, a muted remaining-route line,
 // and a slow "flow" dash moving along the active leg. All animation is skipped with reduced motion.
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl';
 import type { Feature, LineString } from 'geojson';
@@ -7,7 +7,6 @@ import { colors } from '@/theme/tokens';
 export const ROUTE_SRC = 'route-line';
 export const ROUTE_MUTED_SRC = 'route-muted';
 const L_MUTED = 'route-muted-layer';
-const L_GLOW = 'route-glow';
 const L_CASING = 'route-casing';
 const L_MAIN = 'route-line-layer';
 const L_FLOW = 'route-flow';
@@ -23,9 +22,8 @@ export function addRouteLayers(map: MapLibreMap, beforeId?: string) {
   map.addSource(ROUTE_SRC, { type: 'geojson', data: line([]), lineMetrics: true });
   const layout = { 'line-join': 'round', 'line-cap': 'round' } as const;
   map.addLayer({ id: L_MUTED, type: 'line', source: ROUTE_MUTED_SRC, layout, paint: { 'line-color': colors.accent, 'line-width': 3, 'line-opacity': 0.35, 'line-dasharray': [1.2, 1.6] } }, beforeId);
-  map.addLayer({ id: L_GLOW, type: 'line', source: ROUTE_SRC, layout, paint: { 'line-color': colors.accent, 'line-width': 14, 'line-opacity': 0.22, 'line-blur': 8 } }, beforeId);
-  map.addLayer({ id: L_CASING, type: 'line', source: ROUTE_SRC, layout, paint: { 'line-color': '#0B0B0F', 'line-width': 7.5, 'line-opacity': 0.9 } }, beforeId);
-  map.addLayer({ id: L_MAIN, type: 'line', source: ROUTE_SRC, layout, paint: { 'line-color': colors.accent, 'line-width': 5 } }, beforeId);
+  map.addLayer({ id: L_CASING, type: 'line', source: ROUTE_SRC, layout, paint: { 'line-color': '#FFFFFF', 'line-width': 8, 'line-opacity': 1 } }, beforeId);
+  map.addLayer({ id: L_MAIN, type: 'line', source: ROUTE_SRC, layout, paint: { 'line-color': '#252525', 'line-width': 4.5, 'line-blur': 0 } }, beforeId);
   map.addLayer({ id: L_FLOW, type: 'line', source: ROUTE_SRC, layout, paint: { 'line-color': '#FFFFFF', 'line-width': 2, 'line-opacity': 0.75, 'line-dasharray': [0, 4, 3] } }, beforeId);
 }
 

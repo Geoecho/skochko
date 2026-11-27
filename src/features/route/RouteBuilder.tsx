@@ -289,7 +289,7 @@ export function RouteBuilder({ onClose, onAddStops, userLocation }: Props) {
           ]}
         >
           <Text tone={stops.length < 2 ? 'tertiary' : 'accent'} variant="caption" weight="semibold">
-            ⚡ {t('route.autoOrder')}
+            {t('route.autoOrder')}
           </Text>
         </Pressable>
 

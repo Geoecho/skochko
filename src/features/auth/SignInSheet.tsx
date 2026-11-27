@@ -1,6 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type PropsWithChildren } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { useOpenSettings } from '@/features/settings/SettingsDrawerContext';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/lib/supabase';
 import { Button, Icon, IconButton, Text } from '@/ui';
@@ -55,10 +54,9 @@ export function useRequireAuth() {
 
 function SignInSheet({ visible, reason, onDismiss }: { visible: boolean; reason?: AuthReason; onDismiss: () => void }) {
   const { t } = useTranslation();
-  const openSettings = useOpenSettings();
-  const showSettings = reason === 'account';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [passwordMode, setPasswordMode] = useState(true);
   const [creatingAccount, setCreatingAccount] = useState(false);
   const [confirmationSent, setConfirmationSent] = useState(false);
@@ -130,20 +128,27 @@ function SignInSheet({ visible, reason, onDismiss }: { visible: boolean; reason?
   if (!visible) return null;
 
   return (
-    <SideDrawer label={t('auth.signInTitle')} onDismiss={onDismiss}>
+    <SideDrawer label={t('auth.signInTitle')} onDismiss={onDismiss}>{(closeDrawer) => (<>
       <ScrollView keyboardShouldPersistTaps="handled" style={styles.scroll} contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <View style={styles.icon}><Icon name="user" size={24} color={colors.accent} playOnMount /></View>
-          <IconButton icon="close" label={t('common.close')} tone="plain" onPress={onDismiss} />
+          <Text variant="display" weight="bold" style={styles.welcomeTitle}>{t(creatingAccount ? 'auth.welcomeNew' : 'auth.welcomeBack')}</Text>
+          <IconButton icon="close" label={t('common.close')} tone="plain" onPress={closeDrawer} />
         </View>
-        <Text variant="title" weight="bold">{t(creatingAccount ? 'auth.signUpButton' : 'auth.signInTitle')}</Text>
-        <Text tone="secondary">{reason ? t(reasonKey[reason]) : t('auth.signInSubtitle')}</Text>
+        <Text tone="secondary" style={styles.reason}>{reason ? t(reasonKey[reason]) : t('auth.signInSubtitle')}</Text>
+        {state !== 'sent' && passwordMode && <View style={styles.tabs}>
+          {[false, true].map((signup) => <Pressable key={String(signup)} accessibilityRole="button"
+            accessibilityState={{ selected: creatingAccount === signup }} disabled={state === 'sending'}
+            onPress={() => { setCreatingAccount(signup); setState('idle'); setShowPassword(false); }}
+            style={[styles.tab, creatingAccount === signup && styles.tabSelected]}>
+            <Text weight="semibold">{t(signup ? 'auth.createAccountTab' : 'auth.signInButton')}</Text>
+          </Pressable>)}
+        </View>}
         {state === 'sent' ? (
           <View accessibilityLiveRegion="polite" style={styles.status}>
             <Text variant="headline" weight="semibold">{t('auth.magicLinkSent')}</Text>
             <Text tone="secondary">{t('auth.emailSentDetail', { email: email.trim() })}</Text>
             {confirmationSent && <Button label={t('auth.resendConfirmation')} variant="secondary" full onPress={resend} />}
-            <Button label={t('common.done')} full onPress={onDismiss} />
+            <Button label={t('common.done')} full onPress={closeDrawer} />
           </View>
         ) : (
           <View style={styles.form}>
@@ -164,25 +169,37 @@ function SignInSheet({ visible, reason, onDismiss }: { visible: boolean; reason?
             {passwordMode && (
               <>
                 <Text weight="semibold">{t('auth.password')}</Text>
+                <View style={styles.passwordField}>
                 <TextInput
                   accessibilityLabel={t('auth.password')}
                   autoComplete={creatingAccount ? 'new-password' : 'current-password'}
                   placeholder={t('auth.passwordPlaceholder')}
                   placeholderTextColor={colors.textTertiary}
-                  secureTextEntry
+                  secureTextEntry={!showPassword}
                   returnKeyType="go"
                   onSubmitEditing={submit}
                   editable={state !== 'sending'}
                   value={password}
                   onChangeText={(value) => { setPassword(value); if (state === 'error') setState('idle'); }}
-                  style={styles.input}
+                  style={[styles.input, styles.passwordInput]}
                 />
+                <Pressable accessibilityRole="button" accessibilityLabel={t(showPassword ? 'auth.hidePassword' : 'auth.showPassword')}
+                  onPress={() => setShowPassword(value => !value)} style={styles.passwordToggle}>
+                  <Icon key={showPassword ? 'shown' : 'hidden'} name={showPassword ? 'eyeOff' : 'eye'} size={21} color={colors.textSecondary} playOnMount />
+                </Pressable>
+                </View>
               </>
             )}
             {state === 'error' && <Text accessibilityRole="alert" tone="danger">{t(errorKey)}</Text>}
             {state === 'error' && (errorKey === 'auth.emailNotConfirmed' || errorKey === 'auth.resendConfirmationError') && (
               <Button label={t('auth.resendConfirmation')} variant="secondary" full onPress={resend} />
             )}
+
+
+          </View>
+        )}
+      </ScrollView>
+      {state !== 'sent' && <View style={styles.footer}>
             <Button
               label={passwordMode ? t(creatingAccount ? 'auth.signUpButton' : 'auth.signInButton') : t('auth.magicLink')}
               loading={state === 'sending'}
@@ -202,36 +219,29 @@ function SignInSheet({ visible, reason, onDismiss }: { visible: boolean; reason?
             >
               <Text tone="accent" weight="semibold">{t(passwordMode ? 'auth.useMagicLink' : 'auth.orPassword')}</Text>
             </Pressable>
-            {passwordMode && (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t(creatingAccount ? 'auth.haveAccount' : 'auth.needAccount')}
-                disabled={state === 'sending'}
-                onPress={() => { setCreatingAccount((value) => !value); setState('idle'); }}
-                style={styles.link}
-              >
-                <Text tone="secondary">{t(creatingAccount ? 'auth.haveAccount' : 'auth.needAccount')}</Text>
-              </Pressable>
-            )}
-          </View>
-        )}
-        {showSettings && (
-          <Button label={t('profile.settings')} variant="ghost" full onPress={() => {
-            onDismiss();
-            openSettings();
-          }} />
-        )}
-      </ScrollView>
+      </View>}
+    </>)}
     </SideDrawer>
   );
 }
 
 const styles = StyleSheet.create({
+  welcome: { gap: space.sm, paddingTop: space.sm },
+  welcomeTitle: { flex: 1, fontSize: 28, lineHeight: 36, minHeight: 72 },
+  reason: { minHeight: 44 },
+  footer: { flexShrink: 0, paddingHorizontal: space.xl, paddingTop: space.md, paddingBottom: space.md, gap: space.xs, backgroundColor: colors.bg },
+  tabs: { flexDirection: 'row', padding: 5, backgroundColor: '#E5E6E7', borderRadius: radius.pill },
+  tab: { flex: 1, minHeight: 46, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+  tabSelected: { backgroundColor: colors.glass },
+  passwordLabel: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  passwordToggle: { position: 'absolute', top: 4, right: 4, width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+  passwordField: { position: 'relative' },
+  passwordInput: { paddingRight: 52 },
   scroll: { minHeight: 0, flex: 1 },
-  content: { gap: space.md, padding: space.lg },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  icon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  form: { gap: space.md },
+  content: { gap: space.lg, padding: space.xl, paddingBottom: space.md },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: space.md },
+  icon: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.glass, alignItems: 'center', justifyContent: 'center' },
+  form: { gap: space.md, backgroundColor: colors.glass, padding: space.lg, borderRadius: radius.card },
   input: {
     minHeight: 52,
     borderWidth: StyleSheet.hairlineWidth,

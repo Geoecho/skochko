@@ -1,3 +1,4 @@
+import { photoSource, photoSrcSet } from '@/features/venues/photoSources';
 import {
   forwardRef,
   memo,
@@ -8,6 +9,7 @@ import {
 } from 'react';
 import {
   Image,
+  Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,6 +20,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Icon, IconButton, Button, Chip, Text } from '@/ui';
 import { RoutesTab } from '@/features/community/RoutesTab';
+import { NearbyFood } from './NearbyFood';
 import { ExploreCarousels } from './ExploreCarousels';
 import { LiveEventBanners } from '@/features/events/LiveEventBanners';
 import { categoryIconUri } from '@/features/map/categoryIcons';
@@ -35,6 +38,9 @@ type Tab = 'explore' | 'routes';
 
 type Props = {
   desktop?: boolean;
+  searchActive?: boolean;
+  onSearchActiveChange?: (active: boolean) => void;
+  onNearMe?: () => void;
   origin: LatLng;
   venues: NearbyVenue[];
   events: TonightEvent[];
@@ -84,20 +90,21 @@ const VenueRow = memo(function VenueRow({ venue, onPress }: { venue: NearbyVenue
       onPress={onPress}
       style={({ pressed }) => [styles.venueRow, pressed && styles.pressed]}
     >
-      <View style={[styles.rowIcon, { backgroundColor: colors.category[venue.category] }]}>
+      {venue.photos?.[0] ? <img src={photoSource(venue.photos[0],192)} srcSet={photoSrcSet(venue.photos[0],[192,384])} sizes="62px" decoding="async" className="venue-row-photo" width={62} height={70} loading="lazy" alt="" /> : <View style={[styles.rowIcon, { backgroundColor: colors.category[venue.category] }]}>
         <Image source={{ uri: categoryIconUri(venue.category, 18, '#0B0B0F') }} style={styles.rowIconImg} />
-      </View>
+      </View>}
       <View style={styles.rowBody}>
         <View style={styles.rowTitleLine}>
           <Text numberOfLines={1} variant="headline" weight="semibold" style={styles.rowTitle}>
             {venue.name}
           </Text>
-          <Text tone="secondary">{'€'.repeat(venue.price_level ?? 1)}</Text>
+
         </View>
         <Text numberOfLines={1} tone="secondary" variant="caption">
           {t(`categories.${venue.category}`)} · {distanceLabel(venue.distance_m)} · {t('map.venueCard.walkTime', { minutes: walkMinutes })}
         </Text>
         <View style={styles.rowMeta}>
+          {venue.price_level != null && <Text variant="caption" style={styles.priceTag}>{'€'.repeat(venue.price_level)}</Text>}
           <Text variant="caption" style={{ color: venue.is_open_now ? colors.success : colors.textTertiary }}>
             {venue.is_open_now ? t('common.openNow') : venue.hours && Object.keys(venue.hours).length ? t('common.closed') : ''}
           </Text>
@@ -186,19 +193,32 @@ export const HomeSheet = forwardRef<HomeSheetHandle, Props>(function HomeSheet(
     onRetryEvents,
     onExpand,
     desktop,
+    searchActive = false,
+    onSearchActiveChange,
+    onNearMe,
   },
   ref,
 ) {
-  const { i18n, t } = useTranslation();
+  const { t } = useTranslation();
   const inputRef = useRef<TextInputInstance>(null);
   const [tab, setTab] = useState<Tab>('explore');
   const [search, setSearch] = useState('');
+  const [foodSelected, setFoodSelected] = useState(false);
+  const [foodMode, setFoodMode] = useState<'open'|'late'|'all'>('open');
   const activeCategory = filters.categories?.length === 1 ? filters.categories[0] : undefined;
   const searchNeedle = searchKey(search);
   // Carousels when browsing; a flat results list once the user searches or filters.
-  const browsing = !searchNeedle && !filters.categories?.length && !filters.openNow;
+  const browsing = !searchNeedle && !filters.categories?.length && !filters.openNow && !filters.minRating && !filters.maxPrice && !filters.radiusM;
 
-  useImperativeHandle(ref, () => ({ focusSearch: () => { setTab('explore'); inputRef.current?.focus(); } }), []);
+  useImperativeHandle(ref, () => ({
+    focusSearch: () => {
+      setFoodSelected(false);
+      setTab('explore');
+      onSearchActiveChange?.(true);
+      onExpand?.('full');
+      inputRef.current?.focus();
+    },
+  }), [onExpand, onSearchActiveChange]);
 
   const filteredVenues = useMemo(() => {
     if (!searchNeedle) return venues;
@@ -224,7 +244,7 @@ export const HomeSheet = forwardRef<HomeSheetHandle, Props>(function HomeSheet(
 
   const showResults = (snap: 'half' | 'full' = 'half') => {
     if (tab !== 'explore') setTab('explore');
-    onExpand?.(snap);
+    onExpand?.(searchActive ? 'full' : snap);
   };
 
   const onSearchChange = (value: string) => {
@@ -233,16 +253,18 @@ export const HomeSheet = forwardRef<HomeSheetHandle, Props>(function HomeSheet(
   };
 
   const setCategory = (category: VenueCategory) => {
+    setFoodSelected(false);
     onFiltersChange({ ...filters, categories: activeCategory === category ? undefined : [category] });
     showResults();
   };
 
   const clearAll = () => {
+    setFoodSelected(false);
     setSearch('');
     onFiltersChange({});
   };
 
-  const filterControls = (
+  const quickFilters = (
     <>
       <Chip
         label={t('common.openNow')}
@@ -252,38 +274,44 @@ export const HomeSheet = forwardRef<HomeSheetHandle, Props>(function HomeSheet(
         }}
         selected={filters.openNow}
       />
+      <Chip label={t('sheet.nearMe')} selected={filters.radiusM === 1000} onPress={() => {
+        if (filters.radiusM !== 1000) onNearMe?.();
+        onFiltersChange({ ...filters, radiusM: filters.radiusM === 1000 ? undefined : 1000 }); showResults();
+      }} />
+      <Chip label={t('sheet.topRated')} selected={!!filters.minRating} onPress={() => { onFiltersChange({ ...filters, minRating: filters.minRating ? undefined : 4.3 }); showResults(); }} />
+      <Chip label={t('sheet.affordable')} selected={!!filters.maxPrice} onPress={() => { onFiltersChange({ ...filters, maxPrice: filters.maxPrice ? undefined : 1 }); showResults(); }} />
+    </>
+  );
+
+  const foodQuickFilters = (<>
+    <Chip label={t('common.openNow')} selected={foodMode==='open'} onPress={()=>setFoodMode(foodMode==='open'?'all':'open')} />
+    <Chip label={t('sheet.nearMe')} selected={filters.radiusM===1000} onPress={()=>{
+      if(filters.radiusM!==1000)onNearMe?.();
+      onFiltersChange({...filters,radiusM:filters.radiusM===1000?undefined:1000});
+    }} />
+    <Chip label={t('food.late')} selected={foodMode==='late'} onPress={()=>setFoodMode(foodMode==='late'?'all':'late')} />
+  </>);
+
+  const filterControls = (<>
+      <Chip icon="food" label={t('food.category')} selected={foodSelected} onPress={() => {
+        setFoodSelected(value => !value);
+        onFiltersChange({...filters,categories:undefined});
+        showResults();
+      }} />
       {CATEGORY_CHIPS.map((chip) => (
         <Chip
           key={chip.category}
+          icon={chip.category}
           label={t(chip.labelKey)}
           onPress={() => setCategory(chip.category)}
-          selected={activeCategory === chip.category}
+          selected={!foodSelected && activeCategory === chip.category}
         />
       ))}
     </>
   );
 
-  return (
-    <View>
-      <View style={styles.searchWrap}>
-        <Icon name="search" size={20} color={colors.textSecondary} />
-        <TextInput
-          ref={inputRef}
-          accessibilityLabel={t('common.search')}
-          autoCapitalize="none"
-          autoCorrect={false}
-          onChangeText={onSearchChange}
-          onFocus={() => setTab('explore')}
-          onSubmitEditing={() => { if (searchNeedle) showResults('full'); }}
-          placeholder={t('common.searchPlaceholder')}
-          placeholderTextColor={colors.textTertiary}
-          returnKeyType="search"
-          selectionColor={colors.accent}
-          style={styles.searchInput}
-          value={search}
-        />
-        {search.length > 0 && <IconButton icon="close" tone="plain" size={17} label={t('sheet.clearSearch')} onPress={() => { setSearch(''); inputRef.current?.focus(); }} />}
-      </View>
+  const renderContent = () => (<>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="always" contentContainerStyle={styles.quickFilters}>{foodSelected ? foodQuickFilters : quickFilters}</ScrollView>
 
       {desktop ? (
         <View style={[styles.chips, styles.desktopChips]}>{filterControls}</View>
@@ -293,7 +321,7 @@ export const HomeSheet = forwardRef<HomeSheetHandle, Props>(function HomeSheet(
         </ScrollView>
       )}
 
-      <View accessibilityRole="tablist" style={styles.segmented}>
+      {!searchActive && <View accessibilityRole="tablist" style={styles.segmented}>
         {(['explore', 'routes'] as const).map((item) => (
           <Pressable
             key={item}
@@ -307,16 +335,16 @@ export const HomeSheet = forwardRef<HomeSheetHandle, Props>(function HomeSheet(
             </Text>
           </Pressable>
         ))}
-      </View>
+      </View>}
 
-      {tab === 'explore' && !searchNeedle ? <LiveEventBanners venuesById={venuesById} onVenuePress={onVenuePress} /> : null}
+      {!searchActive && !foodSelected && tab === 'explore' && !searchNeedle ? <LiveEventBanners venuesById={venuesById} onVenuePress={onVenuePress} /> : null}
 
       {tab === 'explore' ? (
-        venuesLoading ? (
+        foodSelected ? <NearbyFood origin={origin} search={search} filter={foodMode} onFilterChange={setFoodMode} radiusM={filters.radiusM??3000} /> : venuesLoading ? (
           <View style={styles.listContent}><SkeletonList /></View>
         ) : venuesError ? (
           <View style={styles.listContent}><ErrorState onRetry={onRetryVenues} /></View>
-        ) : browsing ? (
+        ) : browsing && !searchActive ? (
           <>
             {eventsError ? <View style={styles.listContent}><ErrorState onRetry={onRetryEvents} /></View> : null}
             <ExploreCarousels
@@ -351,17 +379,65 @@ export const HomeSheet = forwardRef<HomeSheetHandle, Props>(function HomeSheet(
       ) : (
         <View style={styles.routesContent}><RoutesTab origin={origin} /></View>
       )}
+  </>);
+
+  return (
+    <View style={searchActive ? styles.activeSearchRoot : undefined}>
+      <div className={searchActive ? 'search-entry is-active' : 'search-entry'}>
+      <View style={[styles.searchWrap, styles.activeSearchBar]}>
+        <Icon name="search" size={20} color={colors.textSecondary} />
+        <TextInput
+          ref={inputRef}
+          nativeID="place-search-input"
+          accessibilityLabel={t('common.search')}
+          autoCapitalize="none"
+          autoCorrect={false}
+          onChangeText={onSearchChange}
+          onFocus={() => { setTab('explore'); onSearchActiveChange?.(true); onExpand?.('full'); }}
+          onSubmitEditing={() => { if (searchNeedle) showResults('full'); }}
+          placeholder={t('common.searchPlaceholder')}
+          placeholderTextColor={colors.textTertiary}
+          returnKeyType="search"
+          selectionColor={colors.accent}
+          style={styles.searchInput}
+          value={search}
+        />
+        {search.length > 0 && <IconButton icon="close" tone="plain" size={17} label={t('sheet.clearSearch')} onPress={() => { setSearch(''); inputRef.current?.focus(); }} />}
+      </View>
+      <div className="search-cancel-slot" aria-hidden={!searchActive}><Pressable accessibilityRole="button" disabled={!searchActive} tabIndex={searchActive ? 0 : -1} onPress={() => {
+        Keyboard.dismiss();
+        onSearchActiveChange?.(false);
+      }} style={styles.cancelSearch}>
+        <Text variant="caption" weight="semibold">{t('common.cancel')}</Text>
+      </Pressable></div>
+      </div>
+
+      {searchActive ? <ScrollView style={styles.searchResults} contentContainerStyle={styles.searchResultsContent}
+        keyboardShouldPersistTaps="always" keyboardDismissMode="none">
+        {renderContent()}
+      </ScrollView> : renderContent()}
     </View>
   );
 });
 
 const styles = StyleSheet.create({
+  quickFilters: { gap: space.sm, paddingHorizontal: space.lg, paddingTop: space.sm, paddingBottom: space.sm },
+  rowPhoto: { width: 62, height: 70, borderRadius: 18, marginRight: space.md, backgroundColor: colors.bg },
+  priceTag: { backgroundColor: colors.bg, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, color: colors.textSecondary },
+
+  activeSearchRoot: { flex: 1, minHeight: 0 },
+  activeSearchHeader: { flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.sm },
+  activeSearchBar: { flex: 1, minWidth: 0, marginHorizontal: 0 },
+  cancelSearch: { minHeight: 48, minWidth: 52, alignItems: 'center', justifyContent: 'center' },
+  searchResults: { flex: 1, minHeight: 0 },
+  searchResultsContent: { paddingBottom: space.xl },
+
   searchWrap: {
     height: 54,
     marginHorizontal: space.lg,
     borderRadius: radius.sm,
-    backgroundColor: '#202029',
-    borderWidth: StyleSheet.hairlineWidth,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 0,
     borderColor: colors.hairline,
     flexDirection: 'row',
     alignItems: 'center',
@@ -384,17 +460,17 @@ const styles = StyleSheet.create({
     padding: 3,
     minHeight: touch.min,
     borderRadius: radius.sm,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: '#FFFFFF',
     flexDirection: 'row',
   },
   segment: { flex: 1, minHeight: 38, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
-  segmentSelected: { backgroundColor: '#33313F' },
+  segmentSelected: { backgroundColor: '#E4E4E6' },
   routesContent: { paddingTop: space.md, alignSelf: 'stretch' },
   listContent: { paddingHorizontal: space.lg, paddingTop: space.lg, gap: space.md },
   venueRow: {
     minHeight: 82,
     borderRadius: radius.card,
-    backgroundColor: 'rgba(255,255,255,0.055)',
+    backgroundColor: '#FFFFFF',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.hairline,
     padding: space.md,
@@ -407,12 +483,12 @@ const styles = StyleSheet.create({
   rowBody: { flex: 1, minWidth: 0, gap: 5 },
   rowTitleLine: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   rowTitle: { flex: 1 },
-  rowMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  rowMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm },
   chevron: { fontSize: 26, marginLeft: space.sm },
   eventCard: {
     minHeight: 112,
     borderRadius: radius.card,
-    backgroundColor: 'rgba(255,255,255,0.055)',
+    backgroundColor: '#FFFFFF',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.hairline,
     padding: space.sm,

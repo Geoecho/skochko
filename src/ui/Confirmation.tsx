@@ -24,9 +24,9 @@ export function ConfirmationProvider({ children }: PropsWithChildren) {
   return (
     <ConfirmationContext.Provider value={setRequest}>
       {children}
-      {request && (
-        <WebDialog visible label={request.title} fromBottom dismissOnBackdrop onDismiss={dismiss}>
-          <View style={styles.sheet}>
+      {(
+        <WebDialog visible={!!request} label={request?.title ?? ''} fromBottom dismissOnBackdrop onDismiss={dismiss}>
+          {request && <View style={styles.sheet}>
             <Text variant="title" weight="bold">{request.title}</Text>
             {request.message && <Text tone="secondary">{request.message}</Text>}
             <Button label={t('common.cancel')} variant="ghost" full onPress={dismiss} />
@@ -39,7 +39,7 @@ export function ConfirmationProvider({ children }: PropsWithChildren) {
                 request.onConfirm();
               }}
             />
-          </View>
+          </View>}
         </WebDialog>
       )}
     </ConfirmationContext.Provider>

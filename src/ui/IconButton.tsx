@@ -49,16 +49,16 @@ export function IconButton({ icon, label, onPress, showLabel, loop, size = 22, t
     return <View style={[styles.accent, showLabel ? null : styles.round, style]}>{body}</View>;
   }
   return (
-    <Glass rounded={radius.sm} style={[showLabel ? null : styles.round, style]}>
+    <Glass rounded={radius.pill} style={[showLabel ? null : styles.round, style]}>
       {body}
     </Glass>
   );
 }
 
 const styles = StyleSheet.create({
-  round: { width: touch.min + 4, height: touch.min + 4 },
+  round: { width: touch.min + 8, height: touch.min + 8 },
   hit: { flex: 1, minHeight: touch.min + 4, minWidth: touch.min + 4, alignItems: 'center', justifyContent: 'center' },
   hitLabelled: { flexDirection: 'row', gap: space.sm, paddingHorizontal: space.lg },
-  accent: { borderRadius: radius.sm, backgroundColor: colors.accentFill, overflow: 'hidden' },
+  accent: { borderRadius: radius.pill, backgroundColor: colors.accentFill, overflow: 'hidden' },
   pressed: { opacity: 0.72 },
 });

@@ -7,6 +7,8 @@ export type VenueFilters = {
   categories?: VenueCategory[];
   openNow?: boolean;
   radiusM?: number;
+  minRating?: number;
+  maxPrice?: number;
 };
 
 const MOCK_HOURS: OpeningHours = {
@@ -229,7 +231,18 @@ async function fetchNearbyVenues(origin: LatLng, filters: VenueFilters): Promise
     open_now: filters.openNow ?? false,
   });
   if (error) throw error;
-  return ((data ?? []) as unknown[]).map(normalizeVenue).filter((venue): venue is NearbyVenue => venue !== null);
+  const rows = ((data ?? []) as unknown[]).map(normalizeVenue).filter((venue): venue is NearbyVenue => venue !== null);
+  if (!rows.length) return rows;
+  const { data: metadata } = await supabase.from('venues').select('id,google_details,photos').in('id', rows.map(v => v.id));
+  const enriched = new Map((metadata ?? []).map(v => [v.id, v]));
+  return rows.map(venue => {
+    const extra = enriched.get(venue.id);
+    const google = extra?.google_details as { rating?: number; count?: number } | null;
+    return { ...venue, photos: extra?.photos?.length ? extra.photos : venue.photos,
+      avg_rating: google?.rating ?? venue.avg_rating, rating_count: google?.count ?? venue.rating_count };
+  }).filter(v => !filters.minRating || (v.avg_rating ?? 0) >= filters.minRating)
+    .filter(v => !filters.maxPrice || (v.price_level != null && v.price_level <= filters.maxPrice))
+    .sort((a,b) => filters.minRating ? (b.avg_rating ?? 0) - (a.avg_rating ?? 0) || a.distance_m-b.distance_m : a.distance_m-b.distance_m);
 }
 
 export function useNearbyVenues(origin: LatLng, filters: VenueFilters = {}) {
@@ -242,6 +255,8 @@ export function useNearbyVenues(origin: LatLng, filters: VenueFilters = {}) {
       filters.radiusM ?? 3000,
       filters.openNow ?? false,
       categoryKey,
+      filters.minRating ?? 0,
+      filters.maxPrice ?? 0,
     ],
     queryFn: () => fetchNearbyVenues(origin, filters),
   });

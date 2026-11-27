@@ -3,10 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { Button, Glass, IconButton, Text } from '@/ui';
 import { colors, radius, space, touch } from '@/theme/tokens';
 import type { NearbyVenue, TonightEvent } from '@/types/domain';
-import { MAX_STOPS, useRouteBuilder } from '@/state/routeBuilder';
+import { isVenueClosed, MAX_STOPS, useRouteBuilder } from '@/state/routeBuilder';
 import { useFavourites } from './favourites';
 import { useGoogleVenueDetails } from './googleDetails';
 import { categoryIconUri } from '@/features/map/categoryIcons';
+import { VenueGallery } from './VenueGallery';
 
 type Props = {
   venue: NearbyVenue;
@@ -62,19 +63,18 @@ export function VenueDetail({ venue, event, onBack }: Props) {
         />
       </View>
       {favourites.saveError && <Text tone="danger" variant="caption" accessibilityRole="alert" style={styles.saveError}>{t('map.favouritesError')}</Text>}
-      {venue.photos?.[0] && (
-        <View style={styles.hero}>
-          <Image accessibilityLabel={venue.name} source={{ uri: venue.photos[0] }} style={StyleSheet.absoluteFill} />
-        </View>
-      )}
-      <View style={styles.body}>
+      <View style={styles.detailTitle}>
         <View style={styles.titleBlock}>
           <Text variant="display" weight="bold">{venue.name}</Text>
           <View style={styles.category}>
-            <Image source={{ uri: categoryIconUri(venue.category, 22, colors.category[venue.category]) }} style={styles.categoryIcon} />
+            <Image source={{ uri: categoryIconUri(venue.category, 22, colors.text) }} style={styles.categoryIcon} />
             <Text tone="secondary">{t(`categories.${venue.category}`)}{venue.price_level ? ` · ${'€'.repeat(venue.price_level)}` : ''}</Text>
           </View>
         </View>
+      </View>
+      <VenueGallery venueId={venue.id} name={venue.name} photos={venue.photos} />
+      <View style={styles.body}>
+
 
         <View style={styles.factGrid}>
           <Glass style={styles.fact}>
@@ -127,10 +127,8 @@ export function VenueDetail({ venue, event, onBack }: Props) {
               <View key={review.id} style={styles.review}>
                 <Text weight="semibold">{review.author}{review.rating ? ` · ★ ${review.rating}` : ''}</Text>
                 <Text tone="secondary">{review.text}</Text>
-                {review.url && <a className="venue-review-link" href={review.url} target="_blank" rel="noopener noreferrer">{t('venue.readGoogleReview')}</a>}
               </View>
             ))}
-            {google?.url && <a className="venue-review-link" href={google.url} target="_blank" rel="noopener noreferrer">{t('venue.openGoogleMaps')}</a>}
           </View>
 
       </View>
@@ -144,15 +142,18 @@ export function VenueActions({ venue, onViewRoute, onAddAnother }: { venue: Near
   const stops = useRouteBuilder(state => state.stops);
   const added = stops.some(stop => stop.venue.id === venue.id);
   const atLimit = stops.length >= MAX_STOPS;
+  const closed = isVenueClosed(venue);
 
   return (
     <div className="venue-action-dock">
+      {closed && !added && <Text variant="caption" tone="secondary">{t('route.closedPlaceHint')}</Text>}
       {added && <Text variant="caption" tone="accent" accessibilityLiveRegion="polite">{t('route.stopAdded')}</Text>}
       {added && !atLimit && <Button full label={t('route.addMoreStops')} onPress={onAddAnother} />}
       <Button
         full
         variant={added || atLimit ? 'secondary' : 'primary'}
-        label={added || atLimit ? t('route.viewRouteCount', { count: stops.length }) : t('route.addStop')}
+        disabled={closed && !added && !atLimit}
+        label={added || atLimit ? t('route.viewRouteCount', { count: stops.length }) : closed ? t('common.closed') : t('route.addStop')}
         onPress={() => added || atLimit ? onViewRoute() : add(venue)}
       />
     </div>
@@ -161,6 +162,7 @@ export function VenueActions({ venue, onViewRoute, onAddAnother }: { venue: Near
 
 const styles = StyleSheet.create({
   root: { paddingBottom: space.xl },
+  detailTitle: { paddingHorizontal: space.lg, paddingBottom: space.lg },
   hero: { height: 210, marginHorizontal: space.lg, borderRadius: radius.card, overflow: 'hidden', backgroundColor: colors.bgElevated },
   toolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md, paddingHorizontal: space.lg, marginBottom: space.md },
   backButton: { marginLeft: -space.lg },

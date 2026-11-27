@@ -1,13 +1,18 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@/lib/browser-storage';
-import type { RouteStop } from '@/types/domain';
+import type { NearbyVenue, RouteStop } from '@/types/domain';
 
 export const MAX_STOPS = 8;
 export const DEFAULT_MINUTES = 45;
 export const MIN_MINUTES = 15;
 export const MAX_MINUTES = 120;
 export const STEP_MINUTES = 15;
+
+// Only a known closed status blocks adding; missing opening hours stay unknown.
+export function isVenueClosed(venue: Pick<NearbyVenue, 'is_open_now' | 'hours'>) {
+  return venue.is_open_now === false && !!venue.hours && Object.keys(venue.hours).length > 0;
+}
 
 export function routeDraftSignature(stops: RouteStop[]) {
   return JSON.stringify(stops.map(({ venue, plannedMinutes }) => [venue.id, plannedMinutes]));
@@ -20,7 +25,7 @@ type RouteBuilderState = {
   savedRouteId: string | null;
   savedRouteTitle: string | null;
   savedDraft: SavedDraft | null;
-  add: (venue: RouteStop['venue']) => void;
+  add: (venue: NearbyVenue) => void;
   remove: (venueId: string) => void;
   move: (from: number, to: number) => void;
   updateMinutes: (venueId: string, minutes: number) => void;
@@ -40,7 +45,7 @@ export const useRouteBuilder = create<RouteBuilderState>()(
       savedDraft: null,
       add: (venue) =>
         set((s) =>
-          s.stops.length >= MAX_STOPS || s.stops.some((x) => x.venue.id === venue.id)
+          isVenueClosed(venue) || s.stops.length >= MAX_STOPS || s.stops.some((x) => x.venue.id === venue.id)
             ? s
             : { stops: [...s.stops, { venue, plannedMinutes: DEFAULT_MINUTES }] },
         ),

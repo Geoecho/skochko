@@ -158,7 +158,7 @@ export default function RouteDetailScreen({ id }: { id: string }) {
 
       {data?.stops?.length ? (
         <View style={[styles.footer, { paddingBottom: space.lg + insets.bottom }]}>
-          <Button label={t('community.useRoute')} full onPress={applyRoute} />
+          <Button style={{borderRadius:radius.pill,minHeight:56}} label={t('community.useRoute')} full onPress={applyRoute} />
         </View>
       ) : null}
     </View>

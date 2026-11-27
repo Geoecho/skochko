@@ -7,7 +7,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useConfirmation } from '@/ui/Confirmation';
 import { useTranslation } from 'react-i18next';
-import { Button, Chip, Glass, Text } from '@/ui';
+import { Button, Chip, Glass, Text , Icon} from '@/ui';
 import { colors, radius, space, touch } from '@/theme/tokens';
 import type { LatLng } from '@/types/domain';
 import { useAuth } from '@/features/auth/AuthProvider';
@@ -447,7 +447,7 @@ export function RoutesTab({ origin }: { origin: LatLng }) {
           {!session && process.env.NEXT_PUBLIC_USE_MOCK !== '1' ? (
             <Glass style={styles.guestCard}>
               <View style={styles.guestIcon}>
-                <Text tone="accent" variant="title">🔒</Text>
+                <Icon name="shield" size={28} color={colors.text} playOnMount />
               </View>
               <Text variant="headline" weight="bold" style={styles.guestTitle}>
                 {t('community.mineGuestTitle')}
@@ -501,26 +501,9 @@ const styles = StyleSheet.create({
   container: {
     gap: space.md,
   },
-  subSegmented: {
-    flexDirection: 'row',
-    marginHorizontal: space.lg,
-    padding: 3,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: radius.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.hairline,
-  },
-  subSegment: {
-    flex: 1,
-    minHeight: touch.min - 12,
-    borderRadius: radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: space.sm,
-  },
-  subSegmentSelected: {
-    backgroundColor: 'rgba(255,255,255,0.14)',
-  },
+  subSegmented: { flexDirection:'row', marginHorizontal:space.lg, gap:space.sm, padding:0, backgroundColor:'transparent', borderRadius:radius.pill, borderWidth:0 },
+  subSegment: { flex:1, minHeight:touch.min, borderRadius:radius.pill, backgroundColor:'#FFFFFF', alignItems:'center', justifyContent:'center', paddingHorizontal:space.md },
+  subSegmentSelected: { backgroundColor:'#E8E8EA' },
   sectionContent: {
     gap: space.md,
   },

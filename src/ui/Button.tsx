@@ -23,7 +23,7 @@ export function Button({ label, variant = 'primary', loading, full, disabled, on
         styles.base,
         full && styles.full,
         variant === 'primary' && { backgroundColor: state.pressed ? colors.accentFillPressed : colors.accentFill },
-        variant === 'secondary' && { backgroundColor: state.pressed ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.1)' },
+        variant === 'secondary' && { backgroundColor: state.pressed ? '#DEDEE0' : '#E8E8EA' },
         variant === 'ghost' && { opacity: state.pressed ? 0.6 : 1 },
         (disabled || loading) && { opacity: 0.5 },
         typeof style === 'function' ? style(state) : style,
@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
   base: {
     minHeight: touch.min + 8,
     paddingHorizontal: space.xl,
-    borderRadius: radius.sm,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },

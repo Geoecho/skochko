@@ -27,7 +27,7 @@ export function Glass({ strong, rounded = radius.card, style, children, ...rest 
         { borderRadius: rounded },
         nested
           ? { backgroundColor: strong ? colors.glassInnerStrong : colors.glassInner }
-          : { backgroundColor: strong ? '#22212B' : '#1B1B23' },
+          : { backgroundColor: strong ? colors.glassStrong : colors.glass },
         style,
       ]}
     >
@@ -38,7 +38,7 @@ export function Glass({ strong, rounded = radius.card, style, children, ...rest 
 
 const styles = StyleSheet.create({
   base: {
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 0,
     borderColor: colors.hairline,
     overflow: 'hidden',
   },

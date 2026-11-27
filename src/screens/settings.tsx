@@ -8,8 +8,8 @@ import { useUserLocation } from '@/features/map/useUserLocation';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { supabase } from '@/lib/supabase';
 import { useConfirmation } from '@/ui/Confirmation';
-import { Button, Glass, IconButton, Text } from '@/ui';
-import { SideDrawer } from '@/ui/SideDrawer';
+import { Button, Glass, Icon, Text } from '@/ui';
+import { SideDrawer, DrawerHeader } from '@/ui/SideDrawer';
 import { colors, space } from '@/theme/tokens';
 
 type DeferredInstallPrompt = Event & { prompt: () => Promise<void> };
@@ -71,11 +71,8 @@ export default function SettingsScreen({ onDismiss }: { onDismiss?: () => void }
   };
 
   return (
-    <SideDrawer label={t('profile.settings')} onDismiss={dismiss}>
-        <View style={styles.header}>
-          <Text variant="title" weight="bold">{t('profile.settings')}</Text>
-          <IconButton icon="close" label={t('common.close')} tone="plain" onPress={dismiss} />
-        </View>
+    <SideDrawer presentation="screen" label={t('profile.settings')} onDismiss={dismiss}>{(closeDrawer) => (<>
+        <DrawerHeader back title={t('profile.settings')} onClose={closeDrawer} />
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
           <Glass style={styles.card}>
             <Text variant="headline" weight="bold">{t('profile.language')}</Text>
@@ -86,10 +83,29 @@ export default function SettingsScreen({ onDismiss }: { onDismiss?: () => void }
           </Glass>
 
           <Glass style={styles.card}>
-            <Text variant="headline" weight="bold">{t('privacyPolicy.title')}</Text>
-            <Button label={t('privacyPolicy.read')} variant="secondary" full onPress={openPrivacyPolicy} />
-            <Button label={t('locationPrivacy.manage')} variant="ghost" full onPress={openPrivacy} />
+            <Text variant="headline" weight="bold">{t('intro.label')}</Text>
+            <Text tone="secondary">{t('intro.replayDescription')}</Text>
+            <Button label={t('intro.replay')} variant="secondary" full onPress={() => {
+              closeDrawer();
+              window.dispatchEvent(new Event('skochko:show-intro'));
+            }} />
           </Glass>
+          <View style={styles.privacySection}>
+            <Text variant="headline" weight="bold" style={styles.sectionLabel}>{t('privacyPolicy.title')}</Text>
+            <Glass style={styles.privacyMenu}>
+              <Pressable accessibilityRole="button" onPress={openPrivacyPolicy} style={styles.privacyRow}>
+                <View style={styles.privacyIcon}><Icon name="shield" size={20} color={colors.text} playOnMount /></View>
+                <Text weight="semibold" style={styles.privacyLabel}>{t('settings.privacyPolicy')}</Text>
+                <View style={styles.chevron}><Icon name="back" size={18} color={colors.textSecondary} /></View>
+              </Pressable>
+              <View style={styles.divider} />
+              <Pressable accessibilityRole="button" onPress={openPrivacy} style={styles.privacyRow}>
+                <View style={styles.privacyIcon}><Icon name="locate" size={20} color={colors.text} playOnMount /></View>
+                <Text weight="semibold" style={styles.privacyLabel}>{t('settings.locationAccess')}</Text>
+                <View style={styles.chevron}><Icon name="back" size={18} color={colors.textSecondary} /></View>
+              </Pressable>
+            </Glass>
+          </View>
 
           {Platform.OS === 'web' && (isIos || installPromptAvailable) && (
             <Glass style={styles.card}>
@@ -117,6 +133,7 @@ export default function SettingsScreen({ onDismiss }: { onDismiss?: () => void }
             })} />
           </Glass>
         </ScrollView>
+    </>)}
     </SideDrawer>
   );
 }
@@ -136,11 +153,19 @@ function LanguageButton({ locale, label, selected, onPress }: { locale: Locale; 
 }
 
 const styles = StyleSheet.create({
+  privacySection: { gap:space.md, paddingVertical:space.xl, borderBottomWidth:StyleSheet.hairlineWidth, borderBottomColor:colors.hairline },
+  sectionLabel: { paddingHorizontal: 0 },
+  privacyMenu: { overflow: 'hidden', borderRadius:0, backgroundColor:'transparent' },
+  privacyRow: { minHeight: 76, paddingHorizontal: 0, paddingVertical: space.md, flexDirection: 'row', alignItems: 'center', gap: space.md },
+  privacyIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  privacyLabel: { flex: 1, fontSize: 15, lineHeight: 22 },
+  chevron: { transform: [{ rotate: '180deg' }], flexShrink: 0 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.hairline, marginLeft: 68 },
   scroll: { minHeight: 0, flex: 1 },
-  content: { gap: space.md, padding: space.lg, paddingTop: 0 },
-  header: { minHeight: 60, paddingHorizontal: space.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md },
-  card: { gap: space.md, padding: space.lg },
+  content: { width:'100%', maxWidth:680, alignSelf:'center', gap:0, paddingHorizontal:space.xl, paddingTop:space.sm, paddingBottom:space.xxl },
+  header: { minHeight: 72, paddingHorizontal: space.xl, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md },
+  card: { gap:space.md, paddingVertical:space.xl, borderRadius:0, backgroundColor:'transparent', borderBottomWidth:StyleSheet.hairlineWidth, borderBottomColor:colors.hairline },
   languageRow: { flexDirection: 'row', gap: space.sm },
-  languageButton: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.1)' },
+  languageButton: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: colors.bgElevated },
   languageSelected: { backgroundColor: colors.accentFill },
 });

@@ -1,3 +1,4 @@
+import { photoSource, photoSrcSet } from '@/features/venues/photoSources';
 import { memo, useMemo } from 'react';
 import { Image, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -48,11 +49,11 @@ const VenueCard = memo(function VenueCard({ venue, width, onPress }: { venue: Ne
     >
       <View style={styles.media}>
         {photo ? (
-          <Image source={{ uri: photo }} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />
+          <img src={photoSource(photo,384)} srcSet={photoSrcSet(photo,[384,768])} sizes="250px" decoding="async" className="venue-card-photo" loading="lazy" alt="" />
         ) : (
           // No photo yet (most venues): category-tinted art with the venue's symbol.
           <View style={[StyleSheet.absoluteFill, styles.art, webArt(tint)]}>
-            <Image source={{ uri: categoryIconUri(venue.category, 44) }} style={styles.artIcon} />
+            <Image source={{ uri: categoryIconUri(venue.category, 44, colors.text) }} style={styles.artIcon} />
           </View>
         )}
         <View style={styles.badges}>
@@ -222,7 +223,7 @@ export function ExploreCarousels({
 
 function webArt(tint: string): object | null {
   return Platform.OS === 'web'
-    ? { backgroundImage: `radial-gradient(120% 90% at 20% 10%, ${tint}cc 0%, ${tint}55 38%, rgba(20,20,26,0.9) 100%)` }
+    ? { backgroundImage: `radial-gradient(120% 90% at 20% 10%, ${tint}18 0%, ${tint}0d 38%, rgba(241,242,243,1) 100%)` }
     : { backgroundColor: tint };
 }
 
@@ -230,7 +231,7 @@ const twoColumns = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 
 
 const styles = StyleSheet.create({
   grid: { paddingHorizontal: space.lg, gap: space.md },
-  root: { gap: space.xl, paddingTop: space.md },
+  root: { gap: space.xxl, paddingTop: space.md },
   section: { gap: space.sm },
   rowHeader: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.lg },
   rowIcon: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
@@ -242,11 +243,11 @@ const styles = StyleSheet.create({
     minWidth: 0,
     borderRadius: radius.card,
     overflow: 'hidden',
-    backgroundColor: '#1E1E27',
-    borderWidth: StyleSheet.hairlineWidth,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 0,
     borderColor: colors.hairline,
   },
-  media: { height: 136, backgroundColor: 'rgba(255,255,255,0.05)' },
+  media: { height: 156, backgroundColor: '#F8F8F8' },
   art: { alignItems: 'center', justifyContent: 'center' },
   artIcon: { width: 44, height: 44, opacity: 0.92 },
   eventGlyph: { fontSize: 44, color: colors.text, opacity: 0.9 },
